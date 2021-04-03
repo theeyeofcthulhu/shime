@@ -148,7 +148,7 @@ void draw(struct tm *local_time){
 	
 	attron(COLOR_PAIR(1));
 	move(3, 5);
-	
+
 	char *s_local_time = (char*)malloc(19 * sizeof(char));
 	sprintf(s_local_time, "%2d.%2d.%4d %2d:%2d:%2d",
 			local_time->tm_mday,
