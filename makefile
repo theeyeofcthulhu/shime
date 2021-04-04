@@ -7,12 +7,15 @@ DEPS = shime.h util.h
 EXE = $(ODIR)/shime
 OBJ = $(addprefix $(ODIR)/,$(SRC:.c=.o))
 ODIR = bin
+IDIR = /usr/local/bin
 
 build: $(EXE)
 
 clean:
-	rm -rf $(ODIR)
-	if [ -e /usr/bin/shime ]; then sudo rm /usr/bin/shime; fi
+	@rm -rf $(ODIR)
+	@echo "removing local bin directory"
+	@sudo rm $(IDIR)/shime
+	@echo "removing shime bin from $(IDIR)"
 
 $(ODIR):
 	mkdir -p $@
@@ -24,4 +27,5 @@ $(EXE): $(OBJ)
 	$(CC) -o $@ $^ $(LIBS) $(CFLAGS)
 
 install: $(EXE)
-	sudo cp $(ODIR)/shime /usr/bin/shime
+	@echo "copying shime bin to $(IDIR)"
+	@sudo cp $(ODIR)/shime $(IDIR)/shime
