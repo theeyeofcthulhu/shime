@@ -1,28 +1,4 @@
-#include <stdio.h>
-#include <time.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <curses.h>
-#include <signal.h>
-#include <string.h>
-
-#include "util.h"
 #include "shime.h"
-
-//ascii table keys
-#define KEY_q 113
-#define KEY_h 104
-#define KEY_j 106
-#define KEY_k 107
-#define KEY_l 108
-#define KEY_esc 27
-
-#define MODE_min_h 0
-#define MODE_day 1
-#define MODE_mon 2
-#define MODE_year 3
-
-#define NOARG 0
 
 int main(){
 	init();
@@ -169,7 +145,8 @@ void key_handling(int *x, int *y){
 	case KEY_LEFT:
 	case KEY_h:
 		erase();
-		*x -= 1;
+		if(!((*x - 1) < 0))
+			*x -= 1;
 		break;
 	case KEY_DOWN:
 	case KEY_j:
@@ -179,7 +156,8 @@ void key_handling(int *x, int *y){
 	case KEY_UP:
 	case KEY_k:
 		erase();
-		*y -= 1;
+		if(!((*y - 1) <= 0))
+			*y -= 1;
 		break;
 	case KEY_RIGHT:
 	case KEY_l:
@@ -217,12 +195,12 @@ void draw(struct tm *local_time, int *x, int *y){
 	
 	//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
 	attron(COLOR_PAIR(2));
-	last_and_next(*y, *x + 17, local_time->tm_sec, 60, NOARG, MODE_min_h);
-	last_and_next(*y, *x + 14, local_time->tm_min, 60, NOARG, MODE_min_h);
-	last_and_next(*y, *x + 11, local_time->tm_hour, 24, NOARG, MODE_min_h);
+	last_and_next(*y, *x + 0, local_time->tm_mday, NOARG, local_time->tm_mon + 1, MODE_day);
 	last_and_next(*y, *x + 3, local_time->tm_mon + 1, NOARG, NOARG, MODE_mon);
 	last_and_next(*y, *x + 6, local_time->tm_year + 1900, NOARG, NOARG, MODE_year);
-	last_and_next(*y, *x + 0, local_time->tm_mday, NOARG, local_time->tm_mon + 1, MODE_day);
+	last_and_next(*y, *x + 11, local_time->tm_hour, 24, NOARG, MODE_min_h);
+	last_and_next(*y, *x + 14, local_time->tm_min, 60, NOARG, MODE_min_h);
+	last_and_next(*y, *x + 17, local_time->tm_sec, 60, NOARG, MODE_min_h);
 
 	refresh();
 }

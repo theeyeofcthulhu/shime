@@ -1,3 +1,28 @@
+#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <curses.h>
+#include <signal.h>
+#include <string.h>
+
+#include "util.h"
+
+//ascii table keys
+#define KEY_q 113
+#define KEY_h 104
+#define KEY_j 106
+#define KEY_k 107
+#define KEY_l 108
+#define KEY_esc 27
+
+#define MODE_min_h 0
+#define MODE_day 1
+#define MODE_mon 2
+#define MODE_year 3
+
+#define NOARG 0
+
 void init();
 void loop();
 void key_handling(int *xoff, int *off);
