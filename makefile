@@ -1,22 +1,27 @@
-LIBS = -lncurses
-DEPS = util.h
 CC = gcc
 CFLAGS = -I.
-ODIR = bin
-SRC = shime.c util.c
-OBJ = $(addprefix $(ODIR)/,$(SRC:.c=.o))
-EXE = $(ODIR)/shime
+LIBS = -lncurses
 
-all: $(EXE)
+SRC = shime.c util.c
+DEPS = shime.h util.h
+EXE = $(ODIR)/shime
+OBJ = $(addprefix $(ODIR)/,$(SRC:.c=.o))
+ODIR = bin
+
+build: $(EXE)
 
 clean:
 	rm -rf $(ODIR)
+	if [ -e /usr/bin/shime ]; then sudo rm /usr/bin/shime; fi
 
 $(ODIR):
 	mkdir -p $@
 
 $(ODIR)/%.o: %.c $(DEPS) | $(ODIR)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(LIBS) $(CFLAGS)
 
 $(EXE): $(OBJ)
 	$(CC) -o $@ $^ $(LIBS) $(CFLAGS)
+
+install: $(EXE)
+	if [ ! -e /usr/bin/shime ]; then  sudo cp $(ODIR)/shime /usr/bin/shime; fi

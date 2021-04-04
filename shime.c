@@ -7,13 +7,16 @@
 #include <string.h>
 
 #include "util.h"
-
-void finish(int sig);
-void update_time(struct tm *local_time);
-void draw(struct tm *local_time);
+#include "shime.h"
 
 int main(){
-	
+	init();
+	loop();
+
+	return 0;
+}
+
+void init(){
 	signal(SIGINT, finish);
 
 	initscr();
@@ -23,7 +26,9 @@ int main(){
 	start_color();
 	init_pair(1, COLOR_WHITE, COLOR_BLACK);
 	init_pair(2, COLOR_BLUE, COLOR_BLACK);
+}
 
+void loop(){
 	time_t t_placeholder = time(NULL);
 	struct tm *local_time = localtime(&t_placeholder);
 	while(1){
@@ -33,7 +38,6 @@ int main(){
 
 		sleep(1);
 	}
-	return 0;
 }
 
 void update_time(struct tm *local_time){
