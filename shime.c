@@ -57,18 +57,18 @@ void loop(){
 	struct tm *local_time = localtime(&t_placeholder);
 
 	//used to offset the date and time when moving with arrow keys
-	int *xoff = (int*)malloc(sizeof(int));
-	*xoff = 0;
-	int *yoff = (int*)malloc(sizeof(int));
-	*yoff = 0;
+	int *x = (int*)malloc(sizeof(int));
+	*x = 5;
+	int *y = (int*)malloc(sizeof(int));
+	*y = 3;
 
 	//the main loop: update, draw, sleep
 	while(1){
 		update_time(local_time);
 
-		key_handling(xoff, yoff);
+		key_handling(x, y);
 
-		draw(local_time, xoff, yoff);
+		draw(local_time, x, y);
 
 		sleep(1);
 	}
@@ -153,7 +153,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	free(s_last);
 }
 
-void key_handling(int *xoff, int *yoff){
+void key_handling(int *x, int *y){
 	int key;
 
 	//key handling with wget
@@ -169,31 +169,31 @@ void key_handling(int *xoff, int *yoff){
 	case KEY_LEFT:
 	case KEY_h:
 		erase();
-		*xoff -= 1;
+		*x -= 1;
 		break;
 	case KEY_DOWN:
 	case KEY_j:
 		erase();
-		*yoff += 1;
+		*y += 1;
 		break;
 	case KEY_UP:
 	case KEY_k:
 		erase();
-		*yoff -= 1;
+		*y -= 1;
 		break;
 	case KEY_RIGHT:
 	case KEY_l:
 		erase();
-		*xoff += 1;
+		*x += 1;
 		break;
 	default:
 		break;
 	}
 }
 
-void draw(struct tm *local_time, int *xoff, int *yoff){
+void draw(struct tm *local_time, int *x, int *y){
 	attron(COLOR_PAIR(1));
-	move(*yoff + 3, *xoff + 5);
+	move(*y, *x);
 
 	//create a string that holds the date and time
 	
@@ -217,12 +217,12 @@ void draw(struct tm *local_time, int *xoff, int *yoff){
 	
 	//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
 	attron(COLOR_PAIR(2));
-	last_and_next(*yoff + 3, *xoff + 22, local_time->tm_sec, 60, NOARG, MODE_min_h);
-	last_and_next(*yoff + 3, *xoff + 19, local_time->tm_min, 60, NOARG, MODE_min_h);
-	last_and_next(*yoff + 3, *xoff + 16, local_time->tm_hour, 24, NOARG, MODE_min_h);
-	last_and_next(*yoff + 3, *xoff + 8, local_time->tm_mon + 1, NOARG, NOARG, MODE_mon);
-	last_and_next(*yoff + 3, *xoff + 11, local_time->tm_year + 1900, NOARG, NOARG, MODE_year);
-	last_and_next(*yoff + 3, *xoff + 5, local_time->tm_mday, NOARG, local_time->tm_mon + 1, MODE_day);
+	last_and_next(*y, *x + 17, local_time->tm_sec, 60, NOARG, MODE_min_h);
+	last_and_next(*y, *x + 14, local_time->tm_min, 60, NOARG, MODE_min_h);
+	last_and_next(*y, *x + 11, local_time->tm_hour, 24, NOARG, MODE_min_h);
+	last_and_next(*y, *x + 3, local_time->tm_mon + 1, NOARG, NOARG, MODE_mon);
+	last_and_next(*y, *x + 6, local_time->tm_year + 1900, NOARG, NOARG, MODE_year);
+	last_and_next(*y, *x + 0, local_time->tm_mday, NOARG, local_time->tm_mon + 1, MODE_day);
 
 	refresh();
 }
