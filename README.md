@@ -1,0 +1,2 @@
+# shime
+small terminal clock
