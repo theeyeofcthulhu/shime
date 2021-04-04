@@ -24,4 +24,4 @@ $(EXE): $(OBJ)
 	$(CC) -o $@ $^ $(LIBS) $(CFLAGS)
 
 install: $(EXE)
-	if [ ! -e /usr/bin/shime ]; then  sudo cp $(ODIR)/shime /usr/bin/shime; fi
+	sudo cp $(ODIR)/shime /usr/bin/shime

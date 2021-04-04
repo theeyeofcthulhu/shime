@@ -3,6 +3,7 @@
 
 #include "util.h"
 
+//return the days that a month, TODO: gap year february
 int days_in_month(int mon){
 	if(mon <= 0)
 		mon = 12;
@@ -37,6 +38,7 @@ int days_in_month(int mon){
 	}
 }
 
+//replaces every char "original" with "replace"
 void strreplace(char* string, char original, char replace){
 	int length = strlen(string);
 	for(int i = 0; i < length; i++){
