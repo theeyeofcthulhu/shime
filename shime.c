@@ -54,7 +54,6 @@ void loop(){
 void update_time(struct tm *local_time){
 	time_t t_placeholder = time(NULL);
 	*local_time = *localtime(&t_placeholder);
-	return;
 }
 
 void finish(int sig){
@@ -91,19 +90,26 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		break;
 	}
 
-	move(y + 1, x);
-
 	char *s_next;
+
+	char *s_last;
 
 	if(mode != MODE_year){
 		s_next = (char*)malloc(2 * sizeof(char));
 		sprintf(s_next, "%2d", i_next);
+		s_last = (char*)malloc(2 * sizeof(char));
+		sprintf(s_last, "%2d", i_last);
 	}else{
 		s_next = (char*)malloc(4 * sizeof(char));
 		sprintf(s_next, "%4d", i_next);
+		s_last = (char*)malloc(4 * sizeof(char));
+		sprintf(s_last, "%4d", i_last);
 	}
 
+	move(y + 1, x);
 	addstr(s_next);
+
+	//move call is necessary here because i think addstr() moves the cursor
 	if(i_next < 10){
 		move(y + 1, x);
 		addstr("0");
@@ -111,16 +117,6 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	free(s_next);
 	
 	move(y - 1, x);
-
-	char *s_last;
-
-	if(mode != MODE_year){
-		s_last = (char*)malloc(2 * sizeof(char));
-		sprintf(s_last, "%2d", i_last);
-	}else{
-		s_last = (char*)malloc(4 * sizeof(char));
-		sprintf(s_last, "%4d", i_last);
-	}
 	addstr(s_last);
 	if(i_last < 10){
 		move(y - 1, x);
