@@ -10,6 +10,10 @@
 #include "shime.h"
 
 #define KEY_q 113
+#define KEY_h 104
+#define KEY_j 106
+#define KEY_k 107
+#define KEY_l 108
 #define KEY_esc 27
 
 int main(){
@@ -53,7 +57,7 @@ void loop(){
 
 		draw(local_time, xoff, yoff);
 
-		sleep(0.5);
+		sleep(1);
 	}
 }
 
@@ -190,10 +194,6 @@ void draw(struct tm *local_time, int *xoff, int *yoff){
 		erase();
 		*xoff -= 1;
 		break;
-	case KEY_RIGHT:
-		erase();
-		*xoff += 1;
-		break;
 	case KEY_DOWN:
 		erase();
 		*yoff += 1;
@@ -201,6 +201,28 @@ void draw(struct tm *local_time, int *xoff, int *yoff){
 	case KEY_UP:
 		erase();
 		*yoff -= 1;
+		break;
+	case KEY_RIGHT:
+		erase();
+		*xoff += 1;
+		break;
+
+	//moving with vim bindings	
+	case KEY_h:
+		erase();
+		*xoff -= 1;
+		break;
+	case KEY_j:
+		erase();
+		*yoff += 1;
+		break;
+	case KEY_k:
+		erase();
+		*yoff -= 1;
+		break;
+	case KEY_l:
+		erase();
+		*xoff += 1;
 		break;
 	default:
 		break;
