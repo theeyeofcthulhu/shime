@@ -38,15 +38,21 @@ void loop(){
 	int *y = (int*)malloc(sizeof(int));
 	*y = 3;
 
+	int timer = 0;
+	const int timer_re = 5;
+
 	//the main loop: update, draw, sleep
 	while(1){
-		update_time(local_time);
-
 		key_handling(x, y);
 
-		draw(local_time, x, y);
+		timer++;
+		if(timer == timer_re){
+			update_time(local_time);
+			draw(local_time, x, y);
+			timer = 0;
+		}
 
-		sleep(1);
+		sleep(0.2);
 	}
 }
 
