@@ -39,7 +39,7 @@ void loop(){
 	*y = 3;
 
 	int timer = 0;
-	const int timer_re = 5;
+	const int timer_re = 4;
 
 	//the main loop: update, draw, sleep
 	while(1){
@@ -52,7 +52,7 @@ void loop(){
 			timer = 0;
 		}
 
-		sleep(0.2);
+		sleep(0.25);
 	}
 }
 
