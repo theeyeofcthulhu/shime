@@ -7,12 +7,14 @@ int main(int argc, char **argv){
         switch(c)
         {
         case 'h':
+			//help page
             printf("shime - SHell tIME\n"
                     "   options:\n"
                     "   h: display help\n");
             exit(0);
             break;
         default:
+		case 'u':
             printf("Usage: %s [-h]\n", argv[0]);
             exit(0);
             break;
@@ -171,6 +173,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	//move call is necessary here because i think addstr() moves the cursor
 	if(i_next < 10){
 		move(y + 1, x);
+		//add this 0 for numbers below ten so its like "01, 02, etc."
 		addstr("0");
 	}	
 	free(s_next);
@@ -188,6 +191,8 @@ void key_handling(int *x, int *y){
 	int key;
 
 	//key handling with wget
+
+	//exit keys apart from Ctrl+c
 	switch(key = wgetch(stdscr)){
 	case KEY_esc:
 		finish(0);
