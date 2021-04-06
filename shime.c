@@ -197,12 +197,12 @@ void draw(struct tm *local_time, int x, int y){
 	
 	//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
 	attron(COLOR_PAIR(2));
-	last_and_next(y, x + 0,		local_time->tm_mday, 		NOARG, 	local_time->tm_mon + 1,	MODE_day);
-	last_and_next(y, x + 3,		local_time->tm_mon + 1, 	NOARG, 	NOARG, 			MODE_mon);
-	last_and_next(y, x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			MODE_year);
-	last_and_next(y, x + 11, 	local_time->tm_hour, 		24,	NOARG, 			MODE_min_h);
-	last_and_next(y, x + 14, 	local_time->tm_min, 		60,	NOARG, 			MODE_min_h);
-	last_and_next(y, x + 17, 	local_time->tm_sec, 		60,	NOARG, 			MODE_min_h);
+	last_and_next(y, x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
+	last_and_next(y, x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
+	last_and_next(y, x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
+	last_and_next(y, x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
+	last_and_next(y, x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
+	last_and_next(y, x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
 
 	refresh();
 }
