@@ -1,13 +1,24 @@
 #include "shime.h"
 
-const char *argp_program_version = "0.0";
-
-const char doc[] = "shime - SHell tIME";
-
-static struct argp argp = { 0, 0, 0, doc };
-
 int main(int argc, char **argv){
-    argp_parse(&argp, argc, argv, 0, 0, 0);
+    //argparse with getopt()
+    int c;
+    while((c = getopt(argc, argv, "h")) != -1){
+        switch(c)
+        {
+        case 'h':
+            printf("shime - SHell tIME\n"
+                    "   options:\n"
+                    "   h: display help\n");
+            exit(0);
+            break;
+        default:
+            printf("Usage: %s [-h]\n", argv[0]);
+            exit(0);
+            break;
+        }
+    }
+
 	init();
 	loop();
 
