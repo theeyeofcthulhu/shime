@@ -1,6 +1,13 @@
 #include "shime.h"
 
-int main(){
+const char *argp_program_version = "0.0";
+
+const char doc[] = "shime - SHell tIME";
+
+static struct argp argp = { 0, 0, 0, doc };
+
+int main(int argc, char **argv){
+    argp_parse(&argp, argc, argv, 0, 0, 0);
 	init();
 	loop();
 

@@ -5,6 +5,7 @@
 #include <curses.h>
 #include <signal.h>
 #include <string.h>
+#include <argp.h>
 
 #include "util.h"
 
