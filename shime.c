@@ -9,16 +9,31 @@ int main(){
 
 //ncurses init logic
 void init(){
+    //on interrupt (Ctrl+c) exit
 	signal(SIGINT, finish);
 
+    //init
 	initscr();
+
+    //return key doesn't become newline
 	nonl();
+
+    //disable curosr
 	curs_set(0);
 
+    //allows Ctrl+c to control the program
 	cbreak();
+
+    //don't echo the the getch() chars onto the screen
 	noecho();
+
+    //getch() doesn't wait for input and just returns ERR if no key is pressed
 	nodelay(stdscr, true);
+
+    //enable keypad (for arrow keys)
 	keypad(stdscr, true);
+
+    //color support
 
 	start_color();
 	init_pair(1, COLOR_WHITE, COLOR_BLACK);
@@ -29,22 +44,26 @@ void init(){
 }
 
 void loop(){
+    //initialize and get the localtime
 	time_t t_placeholder = time(NULL);
 	struct tm *local_time = localtime(&t_placeholder);
 
-	//used to offset the date and time when moving with arrow keys
+    //pointers to x and y coordinates of the clock
 	int *x = (int*)malloc(sizeof(int));
 	*x = 5;
 	int *y = (int*)malloc(sizeof(int));
 	*y = 3;
 
+    //timer on with to update the clock
 	int timer = 0;
 	const int timer_re = 4;
 
 	//the main loop: update, draw, sleep
 	while(1){
+        //update keys every tick
 		key_handling(x, y);
 
+        //update clock every four ticks (1 second)
 		timer++;
 		if(timer == timer_re){
 			update_time(local_time);
@@ -62,37 +81,51 @@ void update_time(struct tm *local_time){
 	*local_time = *localtime(&t_placeholder);
 }
 
+//cleanly exit ncurses
 void finish(int sig){
 	endwin();
 	exit(0);
 }
 
+//draws the last and next unit above and below the x and y coords
+/*since this functions is spaghetti, here the meanings of the parameters:
+ *  x, y: coords of the original unit
+ *  unit: the value of the thing
+ *  base: for minutes seconds and hours: the base value for the time unit (min and secs: 60, hours: 24)
+ *  mon: for day: the current month, for calculating if the next day is, for example 31 or 0
+ *  mode: the current mode of the thing, which are defined in the header for example MODE_day for day and MODE_mon for month
+ * */
 void last_and_next(int y, int x, int unit, int base, int mon, int mode){	
 	int i_next = unit + 1;
 	int i_last = unit - 1;
 
 	int i_days_in_month = days_in_month(mon);
 
+    //calculate the last and next units for different modes
 	switch(mode){	
 	case MODE_min_h:
+        //hours and seconds are basic stuff
 		if(i_next == base)
 			i_next = 0;
 		if(i_last == -1)
 			i_last = base - 1;
 		break;
 	case MODE_day:
+        //days depend on the month
 		if(i_next >= i_days_in_month)
 			i_next = 0;
 		if(i_last == -1)
 			i_last = days_in_month(mon - 1);
 		break;
 	case MODE_mon:
+        //months are shifted, since they don't start with 0
 		if(i_next == 13)
 			i_next = 1;
 		if(i_last == 0)
 			i_last = 12;
 		break;
 	case MODE_year:
+        //years don't need that since the are *infinite*
 		break;
 	}
 
@@ -100,6 +133,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 
 	char *s_last;
 
+    //convert the last and next units to strings with sprintf()
 	if(mode != MODE_year){
 		s_next = (char*)malloc(2 * sizeof(char));
 		sprintf(s_next, "%2d", i_next);
@@ -112,6 +146,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		sprintf(s_last, "%4d", i_last);
 	}
 
+    //draw the strings to the ncurses screen
 	move(y + 1, x);
 	addstr(s_next);
 
@@ -171,20 +206,21 @@ void key_handling(int *x, int *y){
 	}
 }
 
+//handle all the ncurses drawing, with the help of other functions
 void draw(struct tm *local_time, int x, int y){
+    //color for the clock, defined in init()
 	attron(COLOR_PAIR(1));
 	move(y, x);
 
 	//create a string that holds the date and time
-	
 	char *s_local_time = (char*)malloc(19 * sizeof(char));
 	sprintf(s_local_time, "%2d.%2d.%4d %2d:%2d:%2d",
-			local_time->tm_mday,
-			local_time->tm_mon + 1,
-			local_time->tm_year + 1900,
-			local_time->tm_hour,
-			local_time->tm_min,
-			local_time->tm_sec);
+		local_time->tm_mday,
+		local_time->tm_mon + 1,
+		local_time->tm_year + 1900,
+		local_time->tm_hour,
+		local_time->tm_min,
+		local_time->tm_sec);
 	//here we replace all empty spaces with '0', so numbers always have a zero in front of them (function from util.h, don't know if theres a builtin for this)
 	strreplace(s_local_time, ' ', '0');
 	//the [10] character is the seperator between date and time so we need this to be a space
