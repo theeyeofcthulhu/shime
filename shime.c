@@ -1,5 +1,12 @@
 #include "shime.h"
 
+struct dimensions{
+	int y;
+	int x;
+	int height;
+	int width;
+};
+
 int main(int argc, char **argv){
     //argparse with getopt()
     int arg;
@@ -22,16 +29,15 @@ int main(int argc, char **argv){
         }
     }
 
-	int *width = (int*)malloc(sizeof(int)), *height = (int*)malloc(sizeof(int));
-
-	init(width, height);
-	loop(width, height);
+	struct dimensions dimensions;
+	init(&dimensions);
+	loop(&dimensions);
 
 	return 0;
 }
 
 //ncurses init logic
-void init(int *width, int *height){
+void init(struct dimensions *dimensions){
     //on interrupt (Ctrl+c) exit
 	signal(SIGINT, finish);
 
@@ -65,18 +71,17 @@ void init(int *width, int *height){
 	init_color(COLOR_BLUE, 200, 200, 200);	
 	init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
-	getmaxyx(stdscr, *height, *width);
+	getmaxyx(stdscr, dimensions->height, dimensions->width);
 }
 
-void loop(int *width, int *height){
+void loop(struct dimensions *dimensions){
     //initialize and get the localtime
 	time_t t_time = time(NULL);
 	struct tm *local_time = localtime(&t_time);
 
     //pointers to x and y coordinates of the clock
-	int *x = (int*)malloc(sizeof(int)), *y = (int*)malloc(sizeof(int));
-	*x = 5;
-	*y = 3;
+	dimensions->y = 3;
+	dimensions->x = 5;
 
     //timer on with to update the clock
 	int timer = 0;
@@ -85,13 +90,13 @@ void loop(int *width, int *height){
 	//the main loop: update, draw, sleep
 	while(1){
         //update keys every tick
-		key_handling(x, y, width, height);
+		key_handling(dimensions);
 
         //update clock every four ticks (1 second)
 		timer++;
 		if(timer == timer_re){
 			update_time(local_time);
-			draw(local_time, *x, *y);
+			draw(local_time, dimensions);
 			timer = 0;
 		}
 
@@ -190,7 +195,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	free(s_last);
 }
 
-void key_handling(int *x, int *y, int *width, int *height){
+void key_handling(struct dimensions *dimensions){
 	int key;
 
 	//key handling with wget
@@ -204,30 +209,30 @@ void key_handling(int *x, int *y, int *width, int *height){
 		finish(0);
 		break;
 
-	//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normall*y
+	//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normally
 	case KEY_LEFT:
 	case KEY_h:
 		erase();
-		if(((*x - 1) > 0))
-			*x -= 1;
+		if(((dimensions->x - 1) > 0))
+			dimensions->x -= 1;
 		break;
 	case KEY_DOWN:
 	case KEY_j:
 		erase();
-		if((*y + 1) < *height - 1)
-			*y += 1;
+		if((dimensions->y + 1) < dimensions->height - 1)
+			dimensions->y += 1;
 		break;
 	case KEY_UP:
 	case KEY_k:
 		erase();
-		if(!((*y - 1) <= 0))
-			*y -= 1;
+		if(!((dimensions->y - 1) <= 0))
+			dimensions->y -= 1;
 		break;
 	case KEY_RIGHT:
 	case KEY_l:
 		erase();
-		if((*x + 1) < *width - 19)
-			*x += 1;
+		if((dimensions->x + 1) < dimensions->width - 19)
+			dimensions->x += 1;
 		break;
 	default:
 		break;
@@ -235,10 +240,10 @@ void key_handling(int *x, int *y, int *width, int *height){
 }
 
 //handle all the ncurses drawing, with the help of other functions
-void draw(struct tm *local_time, int x, int y){
+void draw(struct tm *local_time, struct dimensions *dimensions){
     //color for the clock, defined in init()
 	attron(COLOR_PAIR(1));
-	move(y, x);
+	move(dimensions->y, dimensions->x);
 
 	//create a string that holds the date and time
 	char *s_local_time = (char*)malloc(19 * sizeof(char));
@@ -261,12 +266,12 @@ void draw(struct tm *local_time, int x, int y){
 	
 	//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
 	attron(COLOR_PAIR(2));
-	last_and_next(y, x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
-	last_and_next(y, x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
-	last_and_next(y, x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
-	last_and_next(y, x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
-	last_and_next(y, x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
-	last_and_next(y, x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
+	last_and_next(dimensions->y, dimensions->x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
+	last_and_next(dimensions->y, dimensions->x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
+	last_and_next(dimensions->y, dimensions->x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
+	last_and_next(dimensions->y, dimensions->x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
+	last_and_next(dimensions->y, dimensions->x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
+	last_and_next(dimensions->y, dimensions->x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
 
 	refresh();
 }

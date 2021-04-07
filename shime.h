@@ -23,10 +23,12 @@
 
 #define NOARG 0
 
-void init(int *width, int *height);
-void loop(int *width, int *height);
-void key_handling(int *x, int *y, int *width, int *height);
-void draw(struct tm *local_time, int xoff, int yoff);
+struct dimensions;
+
+void init(struct dimensions *dimensions);
+void loop(struct dimensions *dimensions);
+void key_handling( struct dimensions *dimensions);
+void draw(struct tm *local_time, struct dimensions *dimensions);
 void update_time(struct tm *local_time);
 void finish(int sig);
 void last_and_next(int y, int x, int unit, int base, int mon, int mode);
