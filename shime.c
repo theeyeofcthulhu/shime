@@ -2,15 +2,16 @@
 
 int main(int argc, char **argv){
     //argparse with getopt()
-    int c;
-    while((c = getopt(argc, argv, "h")) != -1){
-        switch(c)
+    int arg;
+    while((arg = getopt(argc, argv, "hu")) != -1){
+        switch(arg)
         {
         case 'h':
 			//help page
             printf("shime - SHell tIME\n"
-                    "   options:\n"
-                    "   h: display help\n");
+                    "	options:\n"
+                    "	h: display help\n"
+					"	u: display usage\n");
             exit(0);
             break;
         default:
@@ -21,8 +22,7 @@ int main(int argc, char **argv){
         }
     }
 
-	int *width = (int*)malloc(sizeof(int));
-	int *height = (int*)malloc(sizeof(int));
+	int *width = (int*)malloc(sizeof(int)), *height = (int*)malloc(sizeof(int));
 
 	init(width, height);
 	loop(width, height);
@@ -44,7 +44,7 @@ void init(int *width, int *height){
     //disable curosr
 	curs_set(0);
 
-    //allows Ctrl+c to control the program
+    //allows Ctrl+c to quit the program
 	cbreak();
 
     //don't echo the the getch() chars onto the screen
@@ -74,9 +74,8 @@ void loop(int *width, int *height){
 	struct tm *local_time = localtime(&t_time);
 
     //pointers to x and y coordinates of the clock
-	int *x = (int*)malloc(sizeof(int));
+	int *x = (int*)malloc(sizeof(int)), *y = (int*)malloc(sizeof(int));
 	*x = 5;
-	int *y = (int*)malloc(sizeof(int));
 	*y = 3;
 
     //timer on with to update the clock
@@ -124,7 +123,9 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	int i_next = unit + 1;
 	int i_last = unit - 1;
 
-	int i_days_in_month = days_in_month(mon);
+	int i_days_in_month;
+	if(MODE_day)
+		i_days_in_month = days_in_month(mon);
 
     //calculate the last and next units for different modes
 	switch(mode){	
@@ -154,9 +155,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		break;
 	}
 
-	char *s_next;
-
-	char *s_last;
+	char *s_next, *s_last;
 
     //convert the last and next units to strings with sprintf()
 	if(mode != MODE_year){
@@ -174,7 +173,6 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
     //draw the strings to the ncurses screen
 	move(y + 1, x);
 	addstr(s_next);
-
 	//move call is necessary here because i think addstr() moves the cursor
 	if(i_next < 10){
 		move(y + 1, x);
