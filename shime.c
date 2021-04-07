@@ -21,14 +21,17 @@ int main(int argc, char **argv){
         }
     }
 
-	init();
-	loop();
+	int *width = (int*)malloc(sizeof(int));
+	int *height = (int*)malloc(sizeof(int));
+
+	init(width, height);
+	loop(width, height);
 
 	return 0;
 }
 
 //ncurses init logic
-void init(){
+void init(int *width, int *height){
     //on interrupt (Ctrl+c) exit
 	signal(SIGINT, finish);
 
@@ -61,12 +64,14 @@ void init(){
 	//grey color
 	init_color(COLOR_BLUE, 200, 200, 200);	
 	init_pair(2, COLOR_BLUE, COLOR_BLACK);
+
+	getmaxyx(stdscr, *height, *width);
 }
 
-void loop(){
+void loop(int *width, int *height){
     //initialize and get the localtime
-	time_t t_placeholder = time(NULL);
-	struct tm *local_time = localtime(&t_placeholder);
+	time_t t_time = time(NULL);
+	struct tm *local_time = localtime(&t_time);
 
     //pointers to x and y coordinates of the clock
 	int *x = (int*)malloc(sizeof(int));
@@ -81,7 +86,7 @@ void loop(){
 	//the main loop: update, draw, sleep
 	while(1){
         //update keys every tick
-		key_handling(x, y);
+		key_handling(x, y, width, height);
 
         //update clock every four ticks (1 second)
 		timer++;
@@ -97,8 +102,8 @@ void loop(){
 
 //gets the localtime, stores it in the given pointer
 void update_time(struct tm *local_time){
-	time_t t_placeholder = time(NULL);
-	*local_time = *localtime(&t_placeholder);
+	time_t t_time = time(NULL);
+	*local_time = *localtime(&t_time);
 }
 
 //cleanly exit ncurses
@@ -107,14 +112,14 @@ void finish(int sig){
 	exit(0);
 }
 
-//draws the last and next unit above and below the x and y coords
-/*since this functions is spaghetti, here the meanings of the parameters:
+/*draws the last and next unit above and below the x and y coords
+ *since this functions is spaghetti, here the meanings of the parameters:
  *  x, y: coords of the original unit
  *  unit: the value of the thing
  *  base: for minutes seconds and hours: the base value for the time unit (min and secs: 60, hours: 24)
  *  mon: for day: the current month, for calculating if the next day is, for example 31 or 0
  *  mode: the current mode of the thing, which are defined in the header for example MODE_day for day and MODE_mon for month
- * */
+ */
 void last_and_next(int y, int x, int unit, int base, int mon, int mode){	
 	int i_next = unit + 1;
 	int i_last = unit - 1;
@@ -187,7 +192,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	free(s_last);
 }
 
-void key_handling(int *x, int *y){
+void key_handling(int *x, int *y, int *width, int *height){
 	int key;
 
 	//key handling with wget
@@ -201,17 +206,18 @@ void key_handling(int *x, int *y){
 		finish(0);
 		break;
 
-	//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normally
+	//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normall*y
 	case KEY_LEFT:
 	case KEY_h:
 		erase();
-		if(!((*x - 1) < 0))
+		if(((*x - 1) > 0))
 			*x -= 1;
 		break;
 	case KEY_DOWN:
 	case KEY_j:
 		erase();
-		*y += 1;
+		if((*y + 1) < *height - 1)
+			*y += 1;
 		break;
 	case KEY_UP:
 	case KEY_k:
@@ -222,7 +228,8 @@ void key_handling(int *x, int *y){
 	case KEY_RIGHT:
 	case KEY_l:
 		erase();
-		*x += 1;
+		if((*x + 1) < *width - 19)
+			*x += 1;
 		break;
 	default:
 		break;

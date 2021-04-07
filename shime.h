@@ -23,9 +23,9 @@
 
 #define NOARG 0
 
-void init();
-void loop();
-void key_handling(int *xoff, int *off);
+void init(int *width, int *height);
+void loop(int *width, int *height);
+void key_handling(int *x, int *y, int *width, int *height);
 void draw(struct tm *local_time, int xoff, int yoff);
 void update_time(struct tm *local_time);
 void finish(int sig);
