@@ -40,6 +40,7 @@ int main(int argc, char **argv){
 void init(struct dimensions *dimensions){
     //on interrupt (Ctrl+c) exit
 	signal(SIGINT, finish);
+	signal(SIGSEGV, finish);
 
     //init
 	initscr();
@@ -113,6 +114,8 @@ void update_time(struct tm *local_time){
 //cleanly exit ncurses
 void finish(int sig){
 	endwin();
+	if(sig == SIGSEGV)
+		printf("Segfault\n");
 	exit(0);
 }
 
@@ -124,7 +127,7 @@ void finish(int sig){
  *  mon: for day: the current month, for calculating if the next day is, for example 31 or 0
  *  mode: the current mode of the thing, which are defined in the header for example MODE_day for day and MODE_mon for month
  */
-void last_and_next(int y, int x, int unit, int base, int mon, int mode){	
+void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){	
 	int i_next = unit + 1;
 	int i_last = unit - 1;
 
@@ -173,7 +176,7 @@ void last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		sprintf(s_next, "%4d", i_next);
 		s_last = (char*)malloc(4 * sizeof(char));
 		sprintf(s_last, "%4d", i_last);
-	}
+}
 
     //draw the strings to the ncurses screen
 	move(y + 1, x);
@@ -266,12 +269,12 @@ void draw(struct tm *local_time, struct dimensions *dimensions){
 	
 	//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
 	attron(COLOR_PAIR(2));
-	last_and_next(dimensions->y, dimensions->x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
-	last_and_next(dimensions->y, dimensions->x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
-	last_and_next(dimensions->y, dimensions->x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
-	last_and_next(dimensions->y, dimensions->x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
-	last_and_next(dimensions->y, dimensions->x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
-	last_and_next(dimensions->y, dimensions->x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
+	draw_last_and_next(dimensions->y, dimensions->x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
+	draw_last_and_next(dimensions->y, dimensions->x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
+	draw_last_and_next(dimensions->y, dimensions->x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
+	draw_last_and_next(dimensions->y, dimensions->x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
+	draw_last_and_next(dimensions->y, dimensions->x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
+	draw_last_and_next(dimensions->y, dimensions->x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
 
 	refresh();
-}
+}	

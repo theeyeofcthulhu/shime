@@ -27,8 +27,8 @@ struct dimensions;
 
 void init(struct dimensions *dimensions);
 void loop(struct dimensions *dimensions);
-void key_handling( struct dimensions *dimensions);
+void key_handling(struct dimensions *dimensions);
 void draw(struct tm *local_time, struct dimensions *dimensions);
 void update_time(struct tm *local_time);
 void finish(int sig);
-void last_and_next(int y, int x, int unit, int base, int mon, int mode);
+void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode);
