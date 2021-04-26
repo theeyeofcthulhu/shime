@@ -18,12 +18,15 @@ int main(int argc, char **argv){
             printf("shime - SHell tIME\n"
                     "	options:\n"
                     "	h: display help\n"
-					"	u: display usage\n");
+					"	u: display usage\n\n"
+					"	controls inside the program:\n"
+					"	vim keys - hjkl or arrow keys: move around\n"
+					"	q or esc: exit\n");
             exit(0);
             break;
         default:
 		case 'u':
-            printf("Usage: %s [-h]\n", argv[0]);
+            printf("Usage: %s [-hu]\n", argv[0]);
             exit(0);
             break;
         }
