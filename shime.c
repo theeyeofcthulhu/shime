@@ -33,14 +33,7 @@ int main(int argc, char **argv){
     }
 
 	struct dimensions dimensions;
-	init(&dimensions);
-	loop(&dimensions);
-
-	return 0;
-}
-
-//ncurses init logic
-void init(struct dimensions *dimensions){
+	//ncurses init logic
     //on interrupt (Ctrl+c) exit
 	signal(SIGINT, finish);
 	signal(SIGSEGV, finish);
@@ -67,6 +60,8 @@ void init(struct dimensions *dimensions){
 	keypad(stdscr, true);
 
     //color support
+	if(!has_colors())
+		finish(0);
 
 	start_color();
 	init_pair(1, COLOR_WHITE, COLOR_BLACK);
@@ -75,17 +70,15 @@ void init(struct dimensions *dimensions){
 	init_color(COLOR_BLUE, 200, 200, 200);	
 	init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
-	getmaxyx(stdscr, dimensions->height, dimensions->width);
-}
+	getmaxyx(stdscr, dimensions.height, dimensions.width);
 
-void loop(struct dimensions *dimensions){
     //initialize and get the localtime
 	time_t t_time = time(NULL);
 	struct tm *local_time = localtime(&t_time);
 
     //pointers to x and y coordinates of the clock
-	dimensions->y = 3;
-	dimensions->x = 5;
+	dimensions.y = 3;
+	dimensions.x = 5;
 
     //timer on with to update the clock
 	int timer = 0;
@@ -94,24 +87,94 @@ void loop(struct dimensions *dimensions){
 	//the main loop: update, draw, sleep
 	while(1){
         //update keys every tick
-		key_handling(dimensions);
+		int key;
+
+		//key handling with wget
+
+		//exit keys apart from Ctrl+c
+		switch(key = wgetch(stdscr)){
+		case KEY_esc:
+			finish(0);
+			break;
+		case KEY_q:
+			finish(0);
+			break;
+
+		//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normally
+		case KEY_LEFT:
+		case KEY_h:
+			erase();
+			if(((dimensions.x - 1) > 0))
+				dimensions.x -= 1;
+			break;
+		case KEY_DOWN:
+		case KEY_j:
+			erase();
+			if((dimensions.y + 1) < dimensions.height - 1)
+				dimensions.y += 1;
+			break;
+		case KEY_UP:
+		case KEY_k:
+			erase();
+			if(!((dimensions.y - 1) <= 0))
+				dimensions.y -= 1;
+			break;
+		case KEY_RIGHT:
+		case KEY_l:
+			erase();
+			if((dimensions.x + 1) < dimensions.width - 19)
+				dimensions.x += 1;
+			break;
+		default:
+			break;
+		}
 
         //update clock every four ticks (1 second)
 		timer++;
 		if(timer == timer_re){
-			update_time(local_time);
-			draw(local_time, dimensions);
-			timer = 0;
+			time_t t_time = time(NULL);
+			*local_time = *localtime(&t_time);
+
+			//color for the clock, defined in init()
+			attron(COLOR_PAIR(1));
+			move(dimensions.y, dimensions.x);
+
+			//create a string that holds the date and time
+			char *s_local_time = (char*)malloc(19 * sizeof(char));
+			sprintf(s_local_time, "%2d.%2d.%4d %2d:%2d:%2d",
+				local_time->tm_mday,
+				local_time->tm_mon + 1,
+				local_time->tm_year + 1900,
+				local_time->tm_hour,
+				local_time->tm_min,
+				local_time->tm_sec);
+			//here we replace all empty spaces with '0', so numbers always have a zero in front of them (function from util.h, don't know if theres a builtin for this)
+			strreplace(s_local_time, ' ', '0');
+			//the [10] character is the seperator between date and time so we need this to be a space
+			s_local_time[10] = ' ';
+
+			//draw the date and time to the screen
+			addstr(s_local_time);
+
+			free(s_local_time);
+			
+			//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
+			attron(COLOR_PAIR(2));
+			draw_last_and_next(dimensions.y, dimensions.x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
+			draw_last_and_next(dimensions.y, dimensions.x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
+			draw_last_and_next(dimensions.y, dimensions.x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
+			draw_last_and_next(dimensions.y, dimensions.x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
+			draw_last_and_next(dimensions.y, dimensions.x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
+			draw_last_and_next(dimensions.y, dimensions.x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
+
+			refresh();
+					timer = 0;
+
+			sleep(0.25);
 		}
-
-		sleep(0.25);
 	}
-}
 
-//gets the localtime, stores it in the given pointer
-void update_time(struct tm *local_time){
-	time_t t_time = time(NULL);
-	*local_time = *localtime(&t_time);
+	return 0;
 }
 
 //cleanly exit ncurses
@@ -179,7 +242,7 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		sprintf(s_next, "%4d", i_next);
 		s_last = (char*)malloc(4 * sizeof(char));
 		sprintf(s_last, "%4d", i_last);
-}
+	}
 
     //draw the strings to the ncurses screen
 	move(y + 1, x);
@@ -200,84 +263,3 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	}	
 	free(s_last);
 }
-
-void key_handling(struct dimensions *dimensions){
-	int key;
-
-	//key handling with wget
-
-	//exit keys apart from Ctrl+c
-	switch(key = wgetch(stdscr)){
-	case KEY_esc:
-		finish(0);
-		break;
-	case KEY_q:
-		finish(0);
-		break;
-
-	//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normally
-	case KEY_LEFT:
-	case KEY_h:
-		erase();
-		if(((dimensions->x - 1) > 0))
-			dimensions->x -= 1;
-		break;
-	case KEY_DOWN:
-	case KEY_j:
-		erase();
-		if((dimensions->y + 1) < dimensions->height - 1)
-			dimensions->y += 1;
-		break;
-	case KEY_UP:
-	case KEY_k:
-		erase();
-		if(!((dimensions->y - 1) <= 0))
-			dimensions->y -= 1;
-		break;
-	case KEY_RIGHT:
-	case KEY_l:
-		erase();
-		if((dimensions->x + 1) < dimensions->width - 19)
-			dimensions->x += 1;
-		break;
-	default:
-		break;
-	}
-}
-
-//handle all the ncurses drawing, with the help of other functions
-void draw(struct tm *local_time, struct dimensions *dimensions){
-    //color for the clock, defined in init()
-	attron(COLOR_PAIR(1));
-	move(dimensions->y, dimensions->x);
-
-	//create a string that holds the date and time
-	char *s_local_time = (char*)malloc(19 * sizeof(char));
-	sprintf(s_local_time, "%2d.%2d.%4d %2d:%2d:%2d",
-		local_time->tm_mday,
-		local_time->tm_mon + 1,
-		local_time->tm_year + 1900,
-		local_time->tm_hour,
-		local_time->tm_min,
-		local_time->tm_sec);
-	//here we replace all empty spaces with '0', so numbers always have a zero in front of them (function from util.h, don't know if theres a builtin for this)
-	strreplace(s_local_time, ' ', '0');
-	//the [10] character is the seperator between date and time so we need this to be a space
-	s_local_time[10] = ' ';
-
-	//draw the date and time to the screen
-	addstr(s_local_time);
-
-	free(s_local_time);
-	
-	//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
-	attron(COLOR_PAIR(2));
-	draw_last_and_next(dimensions->y, dimensions->x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
-	draw_last_and_next(dimensions->y, dimensions->x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
-	draw_last_and_next(dimensions->y, dimensions->x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
-	draw_last_and_next(dimensions->y, dimensions->x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
-	draw_last_and_next(dimensions->y, dimensions->x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
-	draw_last_and_next(dimensions->y, dimensions->x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
-
-	refresh();
-}	

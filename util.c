@@ -1,6 +1,3 @@
-#include <stdlib.h>
-#include <string.h>
-
 #include "util.h"
 
 //return the days that a month, TODO: gap year february

@@ -9,6 +9,9 @@ OBJ = $(addprefix $(ODIR)/,$(SRC:.c=.o))
 ODIR = bin
 IDIR = /usr/local/bin
 
+run: $(EXE)
+	bin/shime
+
 build: $(EXE)
 
 clean:
