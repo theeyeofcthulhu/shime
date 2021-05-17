@@ -32,7 +32,6 @@ int main(int argc, char **argv){
         }
     }
 
-	struct dimensions dimensions;
 	//ncurses init logic
     //on interrupt (Ctrl+c) exit
 	signal(SIGINT, finish);
@@ -70,15 +69,15 @@ int main(int argc, char **argv){
 	init_color(COLOR_BLUE, 200, 200, 200);	
 	init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
+	//Init dimensions
+	struct dimensions dimensions;
 	getmaxyx(stdscr, dimensions.height, dimensions.width);
+	dimensions.y = 3;
+	dimensions.x = 5;
 
     //initialize and get the localtime
 	time_t t_time = time(NULL);
 	struct tm *local_time = localtime(&t_time);
-
-    //pointers to x and y coordinates of the clock
-	dimensions.y = 3;
-	dimensions.x = 5;
 
     //timer on with to update the clock
 	int timer = 0;
@@ -94,8 +93,6 @@ int main(int argc, char **argv){
 		//exit keys apart from Ctrl+c
 		switch(key = wgetch(stdscr)){
 		case KEY_esc:
-			finish(0);
-			break;
 		case KEY_q:
 			finish(0);
 			break;
@@ -262,4 +259,49 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		addstr("0");
 	}	
 	free(s_last);
+}
+
+//return the days that a month, TODO: gap year february
+int days_in_month(int mon){
+	if(mon <= 0)
+		mon = 12;
+	
+	switch(mon){
+		case 1:
+		     return 31;
+		case 2:
+		     return 28;
+		case 3:
+		     return 31;
+		case 4:
+		     return 30;
+		case 5:
+		     return 31;
+		case 6:
+		     return 30;
+		case 7:
+		     return 31;
+		case 8:
+		     return 31;
+		case 9:
+		     return 30;
+		case 10:
+		     return 31;
+		case 11:
+		     return 30;
+		case 12:
+		     return 31;
+		default:
+		     return 31;
+	}
+}
+
+//replaces every char "original" with "replace"
+void strreplace(char* string, char original, char replace){
+	int length = strlen(string);
+	for(int i = 0; i < length; i++){
+		if(string[i] == original){
+			string[i] = replace;
+		}
+	}	
 }

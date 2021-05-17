@@ -2,8 +2,8 @@ CC = gcc
 CFLAGS = -I.
 LIBS = -lncurses
 
-SRC = shime.c util.c
-DEPS = shime.h util.h
+SRC = shime.c
+DEPS = shime.h
 EXE = $(ODIR)/shime
 OBJ = $(addprefix $(ODIR)/,$(SRC:.c=.o))
 ODIR = bin

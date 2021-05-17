@@ -6,8 +6,6 @@
 #include <signal.h>
 #include <string.h>
 
-#include "util.h"
-
 //ascii table keys
 #define KEY_q 113
 #define KEY_h 104
@@ -27,3 +25,5 @@ struct dimensions;
 
 void finish(int sig);
 void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode);
+void strreplace(char* string, char original, char replace);
+int days_in_month(int mon);
