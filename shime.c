@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <curses.h>
 #include <signal.h>
 #include <string.h>
+#include <assert.h>
 
 //ascii table keys
 #define KEY_q 113
@@ -40,9 +41,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define NOARG 0
 
 void finish(int sig);
-void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode);
-void strreplace(char* string, char original, char replace);
-int days_in_month(int mon);
+void draw_last_and_next(int y, int x, int unit, int base, int mon, int year, int mode);
+int days_in_month(int mon, int year);
 
 typedef struct{
 	int y;
@@ -192,24 +192,29 @@ int main(int argc, char **argv){
 				local_time->tm_min,
 				local_time->tm_sec);
 
-			s_local_time[10] = ' ';
-
 			//draw the date and time to the screen
 			addstr(s_local_time);
 			
 			//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
 			attron(COLOR_PAIR(2));
-			draw_last_and_next(dimensions.y, dimensions.x + 0,		local_time->tm_mday, 		    NOARG, 	local_time->tm_mon + 1,	MODE_day);
-			draw_last_and_next(dimensions.y, dimensions.x + 3,		local_time->tm_mon + 1, 	    NOARG, 	NOARG, 			        MODE_mon);
-			draw_last_and_next(dimensions.y, dimensions.x + 6,		local_time->tm_year + 1900, 	NOARG, 	NOARG, 			        MODE_year);
-			draw_last_and_next(dimensions.y, dimensions.x + 11, 	local_time->tm_hour, 		    24,	    NOARG, 			        MODE_min_h);
-			draw_last_and_next(dimensions.y, dimensions.x + 14, 	local_time->tm_min, 		    60,	    NOARG, 			        MODE_min_h);
-			draw_last_and_next(dimensions.y, dimensions.x + 17, 	local_time->tm_sec, 		    60,	    NOARG, 			        MODE_min_h);
+			draw_last_and_next(dimensions.y, dimensions.x + 0,  local_time->tm_mday, 		    
+					NOARG, local_time->tm_mon + 1,local_time->tm_year + 1900,	MODE_day);
+			draw_last_and_next(dimensions.y, dimensions.x + 3,  local_time->tm_mon + 1, 	    
+					NOARG, NOARG, NOARG, MODE_mon);
+			draw_last_and_next(dimensions.y, dimensions.x + 6,  local_time->tm_year + 1900, 	
+					NOARG, NOARG, NOARG, MODE_year);
+			draw_last_and_next(dimensions.y, dimensions.x + 11,	local_time->tm_hour, 		    
+					24, NOARG, NOARG, MODE_min_h);
+			draw_last_and_next(dimensions.y, dimensions.x + 14, local_time->tm_min, 		    
+					60, NOARG, NOARG, MODE_min_h);
+			draw_last_and_next(dimensions.y, dimensions.x + 17, local_time->tm_sec, 		    
+					60, NOARG, NOARG, MODE_min_h);
 
 			refresh();
-					timer = 0;
 
-			usleep(2500);
+			timer = 0;
+
+			usleep(25000);
 		}
 	}
 
@@ -232,7 +237,7 @@ void finish(int sig){
  *  mon: for day: the current month, for calculating if the next day is, for example 31 or 0
  *  mode: the current mode of the thing, which are defined in the header for example MODE_day for day and MODE_mon for month
  */
-void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){	
+void draw_last_and_next(int y, int x, int unit, int base, int mon, int year, int mode){	
 	int i_next = unit + 1;
 	int i_last = unit - 1;
 
@@ -247,12 +252,14 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		break;
 	case MODE_day:
 		{
-			int i_days_in_month = days_in_month(mon);
+			if(mon <= 0)
+				mon = 12;
+			int i_days_in_month = days_in_month(mon, year);
 			//days depend on the month
-			if(i_next >= i_days_in_month)
+			if(i_next > i_days_in_month)
 				i_next = 0;
 			if(i_last == -1)
-				i_last = days_in_month(mon - 1);
+				i_last = days_in_month(mon - 1, year);
 			break;
 		}
 	case MODE_mon:
@@ -266,8 +273,6 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
         //years don't need that since the are *infinite*
 		break;
 	}
-
-	// char *s_next, *s_last;
 
 	int length = mode == MODE_year ? 4 : 2;
 
@@ -292,36 +297,29 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 }
 
 //return the days that a month, TODO: gap year february
-int days_in_month(int mon){
-	if(mon <= 0)
-		mon = 12;
-	
+int days_in_month(int mon, int year){
+	assert(mon >= 1 && mon <= 12);
 	switch(mon){
 		case 1:
-		     return 31;
-		case 2:
-		     return 28;
 		case 3:
-		     return 31;
-		case 4:
-		     return 30;
 		case 5:
-		     return 31;
-		case 6:
-		     return 30;
 		case 7:
-		     return 31;
 		case 8:
-		     return 31;
-		case 9:
-		     return 30;
 		case 10:
-		     return 31;
-		case 11:
-		     return 30;
 		case 12:
 		     return 31;
+		case 4:
+		case 6:
+		case 9:
+		case 11:
+		     return 30;
+		case 2:
+			 // Leap year: https://en.wikipedia.org/wiki/Leap_year
+			 if(year % 4 == 0 && !(year % 100 == 0 && year % 400 != 0))
+				 return 29;
+			 return 28;
 		default:
-		     return 31;
+			 return 0;
+		     break;
 	}
 }
