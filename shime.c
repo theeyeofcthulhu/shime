@@ -16,16 +16,43 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "shime.h"
+#include <unistd.h>
+#include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
+#include <curses.h>
+#include <signal.h>
+#include <string.h>
 
-struct dimensions{
+//ascii table keys
+#define KEY_q 113
+#define KEY_h 104
+#define KEY_j 106
+#define KEY_k 107
+#define KEY_l 108
+#define KEY_esc 27
+
+#define MODE_min_h 0
+#define MODE_day 1
+#define MODE_mon 2
+#define MODE_year 3
+
+#define NOARG 0
+
+void finish(int sig);
+void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode);
+void strreplace(char* string, char original, char replace);
+int days_in_month(int mon);
+
+typedef struct{
 	int y;
 	int x;
 	int height;
 	int width;
-};
+}dimensions;
 
 int main(int argc, char **argv){
+	//TODO: add other data/time formats
     //argparse with getopt()
     int arg;
     while((arg = getopt(argc, argv, "hu")) != -1){
@@ -88,7 +115,7 @@ int main(int argc, char **argv){
 	init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
 	//Init dimensions
-	struct dimensions dimensions;
+	dimensions dimensions;
 	getmaxyx(stdscr, dimensions.height, dimensions.width);
 	dimensions.y = 3;
 	dimensions.x = 5;
@@ -101,6 +128,8 @@ int main(int argc, char **argv){
 	int timer = 0;
 	const int timer_re = 4;
 
+	char s_local_time[20];
+
 	//the main loop: update, draw, sleep
 	while(1){
         //update keys every tick
@@ -110,38 +139,38 @@ int main(int argc, char **argv){
 
 		//exit keys apart from Ctrl+c
 		switch(key = wgetch(stdscr)){
-		case KEY_esc:
-		case KEY_q:
-			finish(0);
-			break;
+			case KEY_esc:
+			case KEY_q:
+				finish(0);
+				break;
 
-		//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normally
-		case KEY_LEFT:
-		case KEY_h:
-			erase();
-			if(((dimensions.x - 1) > 0))
-				dimensions.x -= 1;
-			break;
-		case KEY_DOWN:
-		case KEY_j:
-			erase();
-			if((dimensions.y + 1) < dimensions.height - 1)
-				dimensions.y += 1;
-			break;
-		case KEY_UP:
-		case KEY_k:
-			erase();
-			if(!((dimensions.y - 1) <= 0))
-				dimensions.y -= 1;
-			break;
-		case KEY_RIGHT:
-		case KEY_l:
-			erase();
-			if((dimensions.x + 1) < dimensions.width - 19)
-				dimensions.x += 1;
-			break;
-		default:
-			break;
+			//if we move here we also need to redraw the screen, hence the call to erase() which isn't called normally
+			case KEY_LEFT:
+			case KEY_h:
+				erase();
+				if(((dimensions.x - 1) > 0))
+					dimensions.x -= 1;
+				break;
+			case KEY_DOWN:
+			case KEY_j:
+				erase();
+				if((dimensions.y + 1) < dimensions.height - 1)
+					dimensions.y += 1;
+				break;
+			case KEY_UP:
+			case KEY_k:
+				erase();
+				if(!((dimensions.y - 1) <= 0))
+					dimensions.y -= 1;
+				break;
+			case KEY_RIGHT:
+			case KEY_l:
+				erase();
+				if((dimensions.x + 1) < dimensions.width - 19)
+					dimensions.x += 1;
+				break;
+			default:
+				break;
 		}
 
         //update clock every four ticks (1 second)
@@ -155,23 +184,18 @@ int main(int argc, char **argv){
 			move(dimensions.y, dimensions.x);
 
 			//create a string that holds the date and time
-			char *s_local_time = (char*)malloc(19 * sizeof(char));
-			sprintf(s_local_time, "%2d.%2d.%4d %2d:%2d:%2d",
+			sprintf(s_local_time, "%02d.%02d.%04d %02d:%02d:%02d",
 				local_time->tm_mday,
 				local_time->tm_mon + 1,
 				local_time->tm_year + 1900,
 				local_time->tm_hour,
 				local_time->tm_min,
 				local_time->tm_sec);
-			//here we replace all empty spaces with '0', so numbers always have a zero in front of them (function from util.h, don't know if theres a builtin for this)
-			strreplace(s_local_time, ' ', '0');
-			//the [10] character is the seperator between date and time so we need this to be a space
+
 			s_local_time[10] = ' ';
 
 			//draw the date and time to the screen
 			addstr(s_local_time);
-
-			free(s_local_time);
 			
 			//use a complicated mess of functions to draw the last and next numbers to the screen above and below the date
 			attron(COLOR_PAIR(2));
@@ -185,7 +209,7 @@ int main(int argc, char **argv){
 			refresh();
 					timer = 0;
 
-			sleep(0.25);
+			usleep(2500);
 		}
 	}
 
@@ -212,10 +236,6 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 	int i_next = unit + 1;
 	int i_last = unit - 1;
 
-	int i_days_in_month;
-	if(MODE_day)
-		i_days_in_month = days_in_month(mon);
-
     //calculate the last and next units for different modes
 	switch(mode){	
 	case MODE_min_h:
@@ -226,12 +246,15 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 			i_last = base - 1;
 		break;
 	case MODE_day:
-        //days depend on the month
-		if(i_next >= i_days_in_month)
-			i_next = 0;
-		if(i_last == -1)
-			i_last = days_in_month(mon - 1);
-		break;
+		{
+			int i_days_in_month = days_in_month(mon);
+			//days depend on the month
+			if(i_next >= i_days_in_month)
+				i_next = 0;
+			if(i_last == -1)
+				i_last = days_in_month(mon - 1);
+			break;
+		}
 	case MODE_mon:
         //months are shifted, since they don't start with 0
 		if(i_next == 13)
@@ -244,39 +267,28 @@ void draw_last_and_next(int y, int x, int unit, int base, int mon, int mode){
 		break;
 	}
 
-	char *s_next, *s_last;
+	// char *s_next, *s_last;
+
+	int length = mode == MODE_year ? 4 : 2;
+
+	char s_next[length]; 
+	char s_last[length];
 
     //convert the last and next units to strings with sprintf()
-	if(mode != MODE_year){
-		s_next = (char*)malloc(2 * sizeof(char));
-		sprintf(s_next, "%2d", i_next);
-		s_last = (char*)malloc(2 * sizeof(char));
-		sprintf(s_last, "%2d", i_last);
+	if(length == 2){
+		sprintf(s_next, "%02d", i_next);
+		sprintf(s_last, "%02d", i_last);
 	}else{
-		s_next = (char*)malloc(4 * sizeof(char));
-		sprintf(s_next, "%4d", i_next);
-		s_last = (char*)malloc(4 * sizeof(char));
-		sprintf(s_last, "%4d", i_last);
+		sprintf(s_next, "%04d", i_next);
+		sprintf(s_last, "%04d", i_last);
 	}
 
     //draw the strings to the ncurses screen
 	move(y + 1, x);
 	addstr(s_next);
-	//move call is necessary here because i think addstr() moves the cursor
-	if(i_next < 10){
-		move(y + 1, x);
-		//add this 0 for numbers below ten so its like "01, 02, etc."
-		addstr("0");
-	}	
-	free(s_next);
 	
 	move(y - 1, x);
 	addstr(s_last);
-	if(i_last < 10){
-		move(y - 1, x);
-		addstr("0");
-	}	
-	free(s_last);
 }
 
 //return the days that a month, TODO: gap year february
@@ -312,14 +324,4 @@ int days_in_month(int mon){
 		default:
 		     return 31;
 	}
-}
-
-//replaces every char "original" with "replace"
-void strreplace(char* string, char original, char replace){
-	int length = strlen(string);
-	for(int i = 0; i < length; i++){
-		if(string[i] == original){
-			string[i] = replace;
-		}
-	}	
 }
