@@ -28,7 +28,7 @@ uninstall: $(EXE)
 	rm $(DESTDIR)/bin/$(EXE)
 
 %.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS) $(LIBS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(EXE): $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS) 
