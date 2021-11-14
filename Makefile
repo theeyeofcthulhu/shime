@@ -12,12 +12,12 @@ all: $(EXE)
 
 .PHONY: run
 run: $(EXE)
-	bin/shime
+	./$(EXE)
 
 .PHONY: clean
 clean:
 	rm $(OBJ)
-	rm shime
+	rm $(EXE)
 
 .PHONY: install
 install: $(EXE)
