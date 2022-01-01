@@ -49,12 +49,15 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next);
 
 int days_in_month(int mon, int year);
 
+const char* format           = "%d.%m.%Y %H:%M:%S";
+const char* format_last_next = "%d %m %Y %H %M %S";
+
 typedef struct {
     int y;
     int x;
     int height;
     int width;
-} dimensions;
+} Dimensions;
 
 int main(int argc, char **argv)
 {
@@ -122,7 +125,7 @@ int main(int argc, char **argv)
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
     // Init dimensions
-    dimensions dimensions;
+    Dimensions dimensions;
     getmaxyx(stdscr, dimensions.height, dimensions.width);
 
     dimensions.y = START_Y;
@@ -139,7 +142,7 @@ int main(int argc, char **argv)
     // How much we want to sleep every tick
     const struct timespec request = {0, NANO_INTERVAL};
 
-    char time_str[20], last_str[20], next_str[20];
+    char buf[128];
 
     bool running = true;
 
@@ -190,30 +193,22 @@ int main(int argc, char **argv)
             attron(COLOR_PAIR(1));
             move(dimensions.y, dimensions.x);
 
-            // Create a string that holds the date and time
-            sprintf(time_str, "%02d.%02d.%04d %02d:%02d:%02d",
-                    local_time->tm_mday, local_time->tm_mon + 1,
-                    local_time->tm_year + 1900, local_time->tm_hour,
-                    local_time->tm_min, local_time->tm_sec);
+            strftime(buf, sizeof(buf), format, local_time);
 
             // Draw the date and time to the screen
-            addstr(time_str);
+            addstr(buf);
 
             // Draw the previous and next times
             struct tm last, next;
             get_last_next_time(*local_time, &last, &next);
 
-            sprintf(last_str, "%02d %02d %04d %02d %02d %02d", last.tm_mday,
-                    last.tm_mon, last.tm_year, last.tm_hour, last.tm_min,
-                    last.tm_sec);
-
-            sprintf(next_str, "%02d %02d %04d %02d %02d %02d", next.tm_mday,
-                    next.tm_mon, next.tm_year, next.tm_hour, next.tm_min,
-                    next.tm_sec);
-
             attron(COLOR_PAIR(2));
-            mvaddstr(dimensions.y - 1, dimensions.x, last_str);
-            mvaddstr(dimensions.y + 1, dimensions.x, next_str);
+
+            strftime(buf, sizeof(buf), format_last_next, &last);
+            mvaddstr(dimensions.y - 1, dimensions.x, buf);
+
+            strftime(buf, sizeof(buf), format_last_next, &next);
+            mvaddstr(dimensions.y + 1, dimensions.x, buf);
 
             refresh();
 
@@ -276,19 +271,19 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
 
     // Months
     if (mon + 1 == 13) {
-        next->tm_mon = 1;
+        next->tm_mon = 0;
     } else {
-        next->tm_mon = mon + 1;
+        next->tm_mon = cur.tm_mon + 1;
     }
     if (mon - 1 == 0) {
-        last->tm_mon = 12;
+        last->tm_mon = 11;
     } else {
-        last->tm_mon = mon - 1;
+        last->tm_mon = cur.tm_mon - 1;
     }
 
     // Years
-    next->tm_year = year + 1;
-    last->tm_year = year - 1;
+    next->tm_year = cur.tm_year + 1;
+    last->tm_year = cur.tm_year - 1;
 
     get_last_next_hours_mins_or_seconds(cur.tm_hour, 24, &last->tm_hour,
                                         &next->tm_hour); // Hours

@@ -31,4 +31,4 @@ uninstall: $(EXE)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(EXE): $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS) 
+	$(CC) -o $@ $^ $(LIBS) 
