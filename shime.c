@@ -254,9 +254,6 @@ int main(int argc, char **argv)
 
     start_color();
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
-
-    // Grey color
-    init_color(COLOR_BLUE, 200, 200, 200);
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
     // Init dimensions
