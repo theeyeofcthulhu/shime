@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror
+CFLAGS = -Wall -Werror -Wextra -std=c11 -pedantic -ggdb
 LIBS = -lncurses
 
 SRC = shime.c

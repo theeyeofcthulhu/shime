@@ -17,17 +17,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <assert.h>
+#include <getopt.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <threads.h>
 #include <time.h>
 #include <unistd.h>
 
 #include <curses.h>
 
-// ascii table keys
+// Ascii table keys
 #define KEY_q 113
 #define KEY_h 104
 #define KEY_j 106
@@ -38,15 +40,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define START_Y 3
 #define START_X 5
 
-#define U_INTERVALL 25000
+#define NANO_INTERVAL 25000000
 
 void finish(int sig);
 
-void last_next_hours_mins_or_seconds(int y, int x, int unit, int max);
-void last_next_day(int y, int x, int day, int mon, int year);
-void last_next_mon(int y, int x, int mon);
-void last_next_year(int y, int x, int year);
-void addstr_last_next(int y, int x, int next, int last, int len);
+void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next);
+void get_last_next_time(struct tm cur, struct tm *last, struct tm *next);
 
 int days_in_month(int mon, int year);
 
@@ -60,12 +59,12 @@ typedef struct {
 int main(int argc, char **argv)
 {
     // TODO: add other data/time formats
-    // argparse with getopt()
+    // Argparse with getopt()
     int arg;
     while ((arg = getopt(argc, argv, "hu")) != -1) {
         switch (arg) {
         case 'h':
-            // help page
+            // Help page
             printf("shime Copyright (C) 2021 eyeofcthulhu\n\n"
                    "options:\n"
                    "h: display help\n"
@@ -83,33 +82,33 @@ int main(int argc, char **argv)
         }
     }
 
-    // ncurses init logic
-    // on interrupt (Ctrl+c) exit
+    // Ncurses init logic
+    // On interrupt (Ctrl+c) exit
     signal(SIGINT, finish);
-    signal(SIGSEGV, finish);
+    // Signal(SIGSEGV, finish);
 
-    // init
+    // Init
     initscr();
 
-    // return key doesn't become newline
+    // Return key doesn't become newline
     nonl();
 
-    // disable curosr
+    // Disable curosr
     curs_set(0);
 
-    // allows Ctrl+c to quit the program
+    // Allows Ctrl+c to quit the program
     cbreak();
 
-    // don't echo the the getch() chars onto the screen
+    // Don't echo the the getch() chars onto the screen
     noecho();
 
-    // getch() doesn't wait for input and just returns ERR if no key is pressed
+    // Getch() doesn't wait for input and just returns ERR if no key is pressed
     nodelay(stdscr, true);
 
-    // enable keypad (for arrow keys)
+    // Enable keypad (for arrow keys)
     keypad(stdscr, true);
 
-    // color support
+    // Color support
     if (!has_colors()) {
         fprintf(stderr, "Your terminal does not support color\n");
         finish(0);
@@ -118,7 +117,7 @@ int main(int argc, char **argv)
     start_color();
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
 
-    // grey color
+    // Grey color
     init_color(COLOR_BLUE, 200, 200, 200);
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
@@ -129,33 +128,34 @@ int main(int argc, char **argv)
     dimensions.y = START_Y;
     dimensions.x = START_X;
 
-    // initialize and get the localtime
+    // Initialize and get the localtime
     time_t cur_time = time(NULL);
     struct tm *local_time = localtime(&cur_time);
 
-    // timer on with to update the clock
+    // Timer on with to update the clock
     int timer = 0;
     const int timer_re = 4;
 
-    char time_str[20];
+    // How much we want to sleep every tick
+    const struct timespec request = {0, NANO_INTERVAL};
+
+    char time_str[20], last_str[20], next_str[20];
 
     bool running = true;
 
-    // the main loop: update, draw, sleep
+    // The main loop: update, draw, sleep
     while (running) {
-        int key;
-
-        switch (key = wgetch(stdscr)) {
+        switch (wgetch(stdscr)) {
         case KEY_esc:
         case KEY_q:
             running = false;
             break;
-        // if we move here we also need to redraw the screen, hence the call to
-        // erase() which isn't called normally
+        /* If we move here we also need to redraw the screen, hence the call to
+         * erase() which isn't called normally */
         case KEY_LEFT:
         case KEY_h:
             erase();
-            if (((dimensions.x - 1) > 0))
+            if ((dimensions.x - 1) > 0)
                 dimensions.x -= 1;
             break;
         case KEY_DOWN:
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
         case KEY_UP:
         case KEY_k:
             erase();
-            if (!((dimensions.y - 1) <= 0))
+            if ((dimensions.y - 1) > 0)
                 dimensions.y -= 1;
             break;
         case KEY_RIGHT:
@@ -180,41 +180,46 @@ int main(int argc, char **argv)
             break;
         }
 
-        // update clock every four ticks (1 second)
+        // Update clock every four ticks (1 second)
         timer++;
         if (timer == timer_re) {
             cur_time = time(NULL);
             *local_time = *localtime(&cur_time);
 
-            // color for the clock, defined in init()
+            // Color for the clock, defined in init()
             attron(COLOR_PAIR(1));
             move(dimensions.y, dimensions.x);
 
-            // create a string that holds the date and time
+            // Create a string that holds the date and time
             sprintf(time_str, "%02d.%02d.%04d %02d:%02d:%02d",
                     local_time->tm_mday, local_time->tm_mon + 1,
                     local_time->tm_year + 1900, local_time->tm_hour,
                     local_time->tm_min, local_time->tm_sec);
 
-            // draw the date and time to the screen
+            // Draw the date and time to the screen
             addstr(time_str);
 
-            // use a complicated mess of functions to draw the last and next
-            // numbers to the screen above and below the date
-            attron(COLOR_PAIR(2));
+            // Draw the previous and next times
+            struct tm last, next;
+            get_last_next_time(*local_time, &last, &next);
 
-            last_next_day(                  dimensions.y, dimensions.x +  0, local_time->tm_mday, local_time->tm_mon + 1, local_time->tm_year + 1900);
-            last_next_mon(                  dimensions.y, dimensions.x +  3, local_time->tm_mon + 1);
-            last_next_year(                 dimensions.y, dimensions.x +  6, local_time->tm_year + 1900);
-            last_next_hours_mins_or_seconds(dimensions.y, dimensions.x + 11, local_time->tm_hour, 24);
-            last_next_hours_mins_or_seconds(dimensions.y, dimensions.x + 14, local_time->tm_min, 60);
-            last_next_hours_mins_or_seconds(dimensions.y, dimensions.x + 17, local_time->tm_sec, 60);
+            sprintf(last_str, "%02d %02d %04d %02d %02d %02d", last.tm_mday,
+                    last.tm_mon, last.tm_year, last.tm_hour, last.tm_min,
+                    last.tm_sec);
+
+            sprintf(next_str, "%02d %02d %04d %02d %02d %02d", next.tm_mday,
+                    next.tm_mon, next.tm_year, next.tm_hour, next.tm_min,
+                    next.tm_sec);
+
+            attron(COLOR_PAIR(2));
+            mvaddstr(dimensions.y - 1, dimensions.x, last_str);
+            mvaddstr(dimensions.y + 1, dimensions.x, next_str);
 
             refresh();
 
             timer = 0;
 
-            usleep(U_INTERVALL);
+            thrd_sleep(&request, NULL);
         }
     }
 
@@ -223,7 +228,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// cleanly exit ncurses
+// Cleanly exit ncurses
 void finish(int sig)
 {
     endwin();
@@ -232,82 +237,65 @@ void finish(int sig)
     exit(0);
 }
 
-// Functions to draw the last and next time unit above and below the current one
-
-void last_next_hours_mins_or_seconds(int y, int x, int unit, int max)
+void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next)
 {
-    int next = unit + 1;
-    int last = unit - 1;
-
-    if (next >= max)
-        next = 0;
-    else if (last <= -1)
-        last = max - 1;
-
-    addstr_last_next(y, x, next, last, 2);
+    if (n + 1 >= max) {
+        *next = 0;
+    } else {
+        *next = n + 1;
+    }
+    if (n - 1 <= -1) {
+        *last = max - 1;
+    } else {
+        *last = n - 1;
+    }
 }
 
-void last_next_day(int y, int x, int day, int mon, int year)
+// Calculate the last and the next time unit for every unit in cur
+void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
 {
-    int next = day + 1;
-    int last = day - 1;
+    int year = cur.tm_year + 1900;
+    int mon = cur.tm_mon + 1;
 
-    // days depend on the month
-    if (next > days_in_month(mon, year)) {
-        next = 1;
+    // Days
+    if (cur.tm_mday + 1 > days_in_month(mon, year)) {
+        next->tm_mday = 1;
+    } else {
+        next->tm_mday = cur.tm_mday + 1;
     }
-
-    if (last <= 0) {
-        if(mon - 1 <= 0) {
+    if (cur.tm_mday - 1 <= 0) {
+        if (mon - 1 <= 0) {
             // Last day is in December of last year
-            last = days_in_month(12, year - 1);
+            last->tm_mday = days_in_month(12, year - 1);
         } else {
-            last = days_in_month(mon - 1, year);
+            last->tm_mday = days_in_month(mon - 1, year);
         }
+    } else {
+        last->tm_mday = cur.tm_mday - 1;
     }
 
-    addstr_last_next(y, x, next, last, 2);
-}
+    // Months
+    if (mon + 1 == 13) {
+        next->tm_mon = 1;
+    } else {
+        next->tm_mon = mon + 1;
+    }
+    if (mon - 1 == 0) {
+        last->tm_mon = 12;
+    } else {
+        last->tm_mon = mon - 1;
+    }
 
-void last_next_mon(int y, int x, int mon)
-{
-    int next = mon + 1;
-    int last = mon - 1;
+    // Years
+    next->tm_year = year + 1;
+    last->tm_year = year - 1;
 
-    // months are shifted, since they don't start with 0
-    if (next == 13)
-        next = 1;
-    if (last == 0)
-        last = 12;
-
-    addstr_last_next(y, x, next, last, 2);
-}
-
-void last_next_year(int y, int x, int year)
-{
-    int next = year + 1;
-    int last = year - 1;
-
-    addstr_last_next(y, x, next, last, 4);
-}
-
-void addstr_last_next(int y, int x, int next, int last, int len)
-{
-    assert(len == 2 || len == 4);
-
-    char s_next[len + 1];
-    char s_last[len + 1];
-
-    // convert the last and next units to strings with sprintf()
-    sprintf(s_next, len == 2 ? "%02d" : "%04d", next);
-    sprintf(s_last, len == 2 ? "%02d" : "%04d", last);
-
-    // draw the strings to the ncurses screen
-    move(y + 1, x);
-    addstr(s_next);
-
-    move(y - 1, x);
-    addstr(s_last);
+    get_last_next_hours_mins_or_seconds(cur.tm_hour, 24, &last->tm_hour,
+                                        &next->tm_hour); // Hours
+    get_last_next_hours_mins_or_seconds(cur.tm_min, 60, &last->tm_min,
+                                        &next->tm_min); // Minutes
+    get_last_next_hours_mins_or_seconds(cur.tm_sec, 60, &last->tm_sec,
+                                        &next->tm_sec); // Seconds
 }
 
 // Return the days that a month has
@@ -335,6 +323,7 @@ int days_in_month(int mon, int year)
         else
             return 28;
     default:
+        assert(false);
         return 0;
     }
 }
