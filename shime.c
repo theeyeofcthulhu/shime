@@ -46,6 +46,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define HOUR_IN_SECS 60 * 60
 
 #define SOUND_PATH "Bell, Counter, A.wav"
+#ifndef BUILD_SOUND_PATH
+#define BUILD_SOUND_PATH SOUND_PATH /* Will be defined by make, sound path in install folder */
+#endif
 
 /* Stores format to be read by strftime() */
 typedef struct {
@@ -297,9 +300,10 @@ int main(int argc, char **argv)
 
             Uint32 wav_length;
             SDL_AudioSpec wav_spec;
-            if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) ==
-                NULL) {
-                fprintf(stderr, "Could not open audio file '%s'\n", SOUND_PATH);
+            /* Try to open in current folder and then in install folder */
+            if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) == NULL &&
+                SDL_LoadWAV(BUILD_SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) == NULL) {
+                fprintf(stderr, "Could not open audio file: %s\n", SDL_GetError());
                 return 1;
             }
             wav_spec.callback = audio_callback;

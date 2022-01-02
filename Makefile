@@ -1,11 +1,14 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -pedantic -ggdb
 LIBS = -lncurses $(shell pkg-config --libs sdl2)
 
 SRC = shime.c
 EXE = shime
 OBJ = $(SRC:.c=.o)
 DESTDIR = /usr/local
+
+SOUND=Bell, Counter, A.wav
+
+CFLAGS = -Wall -Wextra -std=c11 -pedantic -ggdb -DBUILD_SOUND_PATH="\"$(DESTDIR)/share/$(EXE)/$(SOUND)\""
 
 .PHONY: all
 all: $(EXE)
@@ -21,11 +24,14 @@ clean:
 
 .PHONY: install
 install: $(EXE)
-	cp $(EXE) $(DESTDIR)/bin/$(EXE)
+	install "$(EXE)" "$(DESTDIR)/bin"
+	mkdir -p "$(DESTDIR)/share/$(EXE)"
+	install "$(SOUND)" "$(DESTDIR)/share/$(EXE)"
 
 .PHONY: uninstall
-uninstall: $(EXE)
-	rm $(DESTDIR)/bin/$(EXE)
+uninstall:
+	rm "$(DESTDIR)/bin/$(EXE)"
+	rm "$(DESTDIR)/share/$(EXE)/$(SOUND)"
 
 %.o: %.c
 	$(CC) -c -o $@ $< $(CFLAGS)
