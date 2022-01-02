@@ -240,12 +240,13 @@ int main(int argc, char **argv)
         switch (arg) {
         case 'h':
             /* Help page */
-            printf("shime Copyright (C) 2021 eyeofcthulhu\n\n"
+            printf("shime Copyright (C) 2021 theeyeofcthulhu on GitHub\n"
+                   "\n"
                    "options:\n"
-                   "-h: display help\n"
-                   "-f [de us]: change the time format\n"
-                   "-u: display usage\n\n"
-                   "-t [NUMBER]: timer in minutes\n"
+                   "-h:                     Display this message and exit\n"
+                   "-f [de us]:             Change the time format\n"
+                   "-t [MINUTES:SECONDS]:   Start a timer with plays a sound on finish\n"
+                   "\n"
                    "controls\n"
                    "vim keys - hjkl or arrow keys: move around\n"
                    "q or esc: exit\n");
