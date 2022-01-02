@@ -371,8 +371,8 @@ int main(int argc, char **argv)
         timer.start = cur_time + timer.mins * 60 + timer.secs;
 
     // Timer on with to update the clock
-    int redraw_timer = 0;
     const int redraw_reset = 50;
+    int redraw_timer = redraw_reset - 1; // Start timer almost at reset so we draw instantly
 
     // How much we want to sleep every tick
     const struct timespec request = {0, NANO_INTERVAL};
