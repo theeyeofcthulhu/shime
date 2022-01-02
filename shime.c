@@ -47,6 +47,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define SOUND_PATH "Bell, Counter, A.wav"
 
+/* Stores format to be read by strftime() */
 typedef struct {
     char *fmt;
     char *last_next;
@@ -264,6 +265,7 @@ int main(int argc, char **argv)
             using_timer = true;
             format = timer_fmt;
 
+            /* Read minutes (up to ':') */
             char *end;
             timer.mins = strtol(optarg, &end, 0);
             if (*end != ':') {
@@ -272,9 +274,10 @@ int main(int argc, char **argv)
                 return 1;
             }
 
+            /* Read seconds */
+            timer.secs = strtol(end + 1, &end, 0);
             /* If *end is '\0', the whole string was read as a number (see man
              * strtol(3)) */
-            timer.secs = strtol(end + 1, &end, 0);
             if (*end != '\0') {
                 fprintf(stderr,
                         "Expected string in the format: MINUTES:SECONDS\n");
@@ -321,15 +324,15 @@ int main(int argc, char **argv)
 
     /* On interrupt (Ctrl+c) exit */
     signal(SIGINT, finish);
+    /* On segfault: endwin() to avoid messing up terminal */
     signal(SIGSEGV, finish);
 
-    /* Init */
     initscr();
 
     /* Return key doesn't become newline */
     nonl();
 
-    /* Disable curosr */
+    /* Disable cursor */
     curs_set(0);
 
     /* Allows Ctrl+c to quit the program */
@@ -431,8 +434,10 @@ int main(int argc, char **argv)
             cur_time = time(NULL);
 
             if (using_timer) {
+                /* How far away are we from reaching start? */
                 cur_time = timer.start - cur_time;
 
+                /* Finished */
                 if (cur_time < 0) {
                     /* Play the 'ding' sound */
                     SDL_PauseAudio(0);
