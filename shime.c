@@ -33,7 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <SDL2/SDL.h>
 
-// Ascii table keys
+/* Ascii table keys */
 #define KEY_q 113
 #define KEY_h 104
 #define KEY_j 106
@@ -80,7 +80,7 @@ typedef struct {
     int secs;
 } Timer;
 
-// SDL Audio variables (for timer)
+/* SDL Audio variables (for timer) */
 Uint8 *audio_pos;
 Uint32 audio_len;
 
@@ -107,7 +107,7 @@ DateTimeFormat strtimeformat(char *str)
     }
 }
 
-// Cleanly exit ncurses
+/* Cleanly exit ncurses */
 void finish(int sig)
 {
     endwin();
@@ -118,6 +118,7 @@ void finish(int sig)
     exit(0);
 }
 
+/* For SDL2 audio playing: copy current audio data (audio_pos) into stream */
 void audio_callback(void *userdata, Uint8 *stream, int len)
 {
     (void)userdata;
@@ -146,13 +147,14 @@ void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next)
     }
 }
 
-// Calculate the last and the next time unit for every unit in cur
+/* Calculate the last and the next time unit for every unit in cur
+ * Store in *last and *next */
 void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
 {
     int year = cur.tm_year + 1900;
     int mon = cur.tm_mon + 1;
 
-    // Days
+    /* Days */
     if (cur.tm_mday + 1 > days_in_month(mon, year)) {
         next->tm_mday = 1;
     } else {
@@ -160,7 +162,7 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
     }
     if (cur.tm_mday - 1 <= 0) {
         if (mon - 1 <= 0) {
-            // Last day is in December of last year
+            /* Last day is in December of last year */
             last->tm_mday = days_in_month(12, year - 1);
         } else {
             last->tm_mday = days_in_month(mon - 1, year);
@@ -169,7 +171,7 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
         last->tm_mday = cur.tm_mday - 1;
     }
 
-    // Months
+    /* Months */
     if (mon + 1 == 13) {
         next->tm_mon = 0;
     } else {
@@ -181,19 +183,19 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
         last->tm_mon = cur.tm_mon - 1;
     }
 
-    // Years
+    /* Years */
     next->tm_year = cur.tm_year + 1;
     last->tm_year = cur.tm_year - 1;
 
     get_last_next_hours_mins_or_seconds(cur.tm_hour, 24, &last->tm_hour,
-                                        &next->tm_hour); // Hours
+                                        &next->tm_hour); /* Hours */
     get_last_next_hours_mins_or_seconds(cur.tm_min, 60, &last->tm_min,
-                                        &next->tm_min); // Minutes
+                                        &next->tm_min); /* Minutes */
     get_last_next_hours_mins_or_seconds(cur.tm_sec, 60, &last->tm_sec,
-                                        &next->tm_sec); // Seconds
+                                        &next->tm_sec); /* Seconds */
 }
 
-// Return the days a month has
+/* Return the days a month has */
 int days_in_month(int mon, int year)
 {
     assert(mon >= 1 && mon <= 12);
@@ -212,7 +214,7 @@ int days_in_month(int mon, int year)
     case 11:
         return 30;
     case 2:
-        // Leap year: https://en.wikipedia.org/wiki/Leap_year#Algorithm
+        /* Leap year: https://en.wikipedia.org/wiki/Leap_year#Algorithm */
         if (year % 4 == 0 && !(year % 100 == 0 && year % 400 != 0))
             return 29;
         else
@@ -236,7 +238,7 @@ int main(int argc, char **argv)
     while ((arg = getopt(argc, argv, "hf:t:")) != -1) {
         switch (arg) {
         case 'h':
-            // Help page
+            /* Help page */
             printf("shime Copyright (C) 2021 eyeofcthulhu\n\n"
                    "options:\n"
                    "-h: display help\n"
@@ -257,7 +259,7 @@ int main(int argc, char **argv)
             break;
         case 't':
         {
-            // Read optarg into number and intialize SDL to play the sound
+            /* Read optarg into number and intialize SDL to play the sound */
 
             using_timer = true;
             format = timer_fmt;
@@ -270,8 +272,8 @@ int main(int argc, char **argv)
                 return 1;
             }
 
-            // If *end is '\0', the whole string was read as a number (see man
-            // strtol(3))
+            /* If *end is '\0', the whole string was read as a number (see man
+             * strtol(3)) */
             timer.secs = strtol(end + 1, &end, 0);
             if (*end != '\0') {
                 fprintf(stderr,
@@ -283,7 +285,7 @@ int main(int argc, char **argv)
                 return 1;
             }
 
-            // Initialize SDL for playing sound after timer has ended
+            /* Initialize SDL for playing sound after timer has ended */
             if (SDL_Init(SDL_INIT_AUDIO) < 0) {
                 fprintf(stderr, "Could not initialize SDL\n");
                 return 1;
@@ -302,7 +304,6 @@ int main(int argc, char **argv)
             audio_pos = wav_buffer;
             audio_len = wav_length;
 
-            /* Open the audio device */
             if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
                 fprintf(stderr, "Could not open audio: %s\n", SDL_GetError());
                 return 1;
@@ -316,62 +317,63 @@ int main(int argc, char **argv)
         }
     }
 
-    // Ncurses init logic
+    /* Ncurses init logic */
 
-    // On interrupt (Ctrl+c) exit
+    /* On interrupt (Ctrl+c) exit */
     signal(SIGINT, finish);
     signal(SIGSEGV, finish);
 
-    // Init
+    /* Init */
     initscr();
 
-    // Return key doesn't become newline
+    /* Return key doesn't become newline */
     nonl();
 
-    // Disable curosr
+    /* Disable curosr */
     curs_set(0);
 
-    // Allows Ctrl+c to quit the program
+    /* Allows Ctrl+c to quit the program */
     cbreak();
 
-    // Don't echo the the getch() chars onto the screen
+    /* Don't echo the the getch() chars onto the screen */
     noecho();
 
-    // Getch() doesn't wait for input and just returns ERR if no key is pressed
+    /* Getch() doesn't wait for input and just returns ERR if no key is pressed */
     nodelay(stdscr, true);
 
-    // Enable keypad (for arrow keys)
+    /* Enable keypad (for arrow keys) */
     keypad(stdscr, true);
 
-    // Color support
+    /* Color support */
     if (!has_colors()) {
+        endwin();
         fprintf(stderr, "Your terminal does not support color\n");
-        finish(SIGKILL);
+        return 1;
     }
 
     start_color();
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
-    // Init dimensions
+    /* Init dimensions */
     Dimensions dimensions;
     getmaxyx(stdscr, dimensions.height, dimensions.width);
 
     dimensions.y = dimensions.height / 2;
     dimensions.x = dimensions.width / 2 - (strlen(format.fmt) / 2);
 
-    // Initialize and get the localtime
+    /* Initialize and get the localtime */
     time_t cur_time = time(NULL);
     struct tm *local_time = localtime(&cur_time);
 
     if (using_timer)
         timer.start = cur_time + timer.mins * 60 + timer.secs;
 
-    // Timer on with to update the clock
+    /* Timer on with to update the clock */
     const int redraw_reset = 50;
-    int redraw_timer = redraw_reset - 1; // Start timer almost at reset so we draw instantly
+    int redraw_timer = redraw_reset - 1; /* Start timer almost at reset so we draw instantly */
 
-    // How much we want to sleep every tick
+    /* How much we want to sleep every tick */
     const struct timespec request = {0, NANO_INTERVAL};
 
     char buf[128];
@@ -380,7 +382,7 @@ int main(int argc, char **argv)
 
     bool need_to_erase = false;
 
-    // The main loop: update, draw, sleep
+    /* The main loop: update, draw, sleep */
     while (running) {
         switch (wgetch(stdscr)) {
         case KEY_esc:
@@ -418,7 +420,7 @@ int main(int argc, char **argv)
             break;
         }
 
-        // Update clock every four ticks (1 second)
+        /* Update clock every four ticks */
         redraw_timer++;
         if (redraw_timer == redraw_reset) {
             if (need_to_erase) {
@@ -432,7 +434,7 @@ int main(int argc, char **argv)
                 cur_time = timer.start - cur_time;
 
                 if (cur_time < 0) {
-                    // Play the 'ding' sound
+                    /* Play the 'ding' sound */
                     SDL_PauseAudio(0);
                     while (audio_len > 0) {
                         SDL_Delay(100);
@@ -445,22 +447,22 @@ int main(int argc, char **argv)
                     return 0;
                 }
 
-                // The timer is relative to 1970-1-1 00:00:00 and localtime()
-                // would change the hour value according to the timezone.
+                /* The timer is relative to 1970-1-1 00:00:00 and localtime() */
+                /* would change the hour value according to the timezone. */
                 *local_time = *gmtime(&cur_time);
             } else {
                 *local_time = *localtime(&cur_time);
             }
 
-            // Color for the clock, defined in init()
+            /* Color for the clock, defined in init() */
             attron(COLOR_PAIR(1));
 
             strftime(buf, sizeof(buf), format.fmt, local_time);
 
-            // Draw the date and time to the screen
+            /* Draw the date and time to the screen */
             mvaddstr(dimensions.y, dimensions.x, buf);
 
-            // Draw the previous and next times
+            /* Draw the previous and next times */
             struct tm last, next;
             get_last_next_time(*local_time, &last, &next);
 
