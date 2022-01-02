@@ -41,9 +41,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define KEY_l 108
 #define KEY_esc 27
 
-#define START_Y 3
-#define START_X 5
-
 #define NANO_INTERVAL 10000000
 
 #define HOUR_IN_SECS 60 * 60
@@ -360,8 +357,8 @@ int main(int argc, char **argv)
     Dimensions dimensions;
     getmaxyx(stdscr, dimensions.height, dimensions.width);
 
-    dimensions.y = START_Y;
-    dimensions.x = START_X;
+    dimensions.y = dimensions.height / 2;
+    dimensions.x = dimensions.width / 2 - (strlen(format.fmt) / 2);
 
     // Initialize and get the localtime
     time_t cur_time = time(NULL);
