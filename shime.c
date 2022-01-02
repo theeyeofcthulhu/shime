@@ -16,6 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+ /* TODO: specify strftime() format via command line */
+
 #include <assert.h>
 #include <getopt.h>
 #include <signal.h>
@@ -28,6 +30,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <unistd.h>
 
 #include <curses.h>
+
+#include <SDL2/SDL.h>
 
 // Ascii table keys
 #define KEY_q 113
@@ -42,19 +46,28 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define NANO_INTERVAL 25000000
 
+#define HOUR_IN_SECS 60 * 60
+
+#define SOUND_PATH "Bell, Counter, A.wav"
+
 typedef struct {
-    char* fmt;
-    char* last_next;
+    char *fmt;
+    char *last_next;
 } DateTimeFormat;
 
 const DateTimeFormat de = {
-    .fmt       = "%d.%m.%Y %H:%M:%S",
+    .fmt = "%d.%m.%Y %H:%M:%S",
     .last_next = "%d %m %Y %H %M %S",
 };
 
 const DateTimeFormat us = {
-    .fmt       = "%m/%d/%Y %H:%M:%S",
+    .fmt = "%m/%d/%Y %H:%M:%S",
     .last_next = "%m %d %Y %H %M %S",
+};
+
+const DateTimeFormat timer_fmt = {
+    .fmt = "%H:%M:%S",
+    .last_next = "%H %M %S",
 };
 
 typedef struct {
@@ -64,20 +77,32 @@ typedef struct {
     int width;
 } Dimensions;
 
-DateTimeFormat strtimeformat(char* str);
+typedef struct {
+    time_t start;
+    int mins;
+    int secs;
+} Timer;
+
+// SDL Audio variables (for timer)
+Uint8 *audio_pos;
+Uint32 audio_len;
+
+DateTimeFormat strtimeformat(char *str);
 
 void finish(int sig);
+
+void audio_callback(void *userdata, Uint8 *stream, int len);
 
 void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next);
 void get_last_next_time(struct tm cur, struct tm *last, struct tm *next);
 
 int days_in_month(int mon, int year);
 
-DateTimeFormat strtimeformat(char* str)
+DateTimeFormat strtimeformat(char *str)
 {
-    if(strcmp(str, "de") == 0) {
+    if (strcmp(str, "de") == 0) {
         return de;
-    } else if(strcmp(str, "us") == 0) {
+    } else if (strcmp(str, "us") == 0) {
         return us;
     } else {
         fprintf(stderr, "Invalid format: '%s'\n", str);
@@ -94,6 +119,20 @@ void finish(int sig)
         exit(1);
     }
     exit(0);
+}
+
+void audio_callback(void *userdata, Uint8 *stream, int len)
+{
+    (void)userdata;
+
+    if (audio_len == 0)
+        return;
+
+    len = len > (int)audio_len ? (int)audio_len : len;
+    SDL_memcpy(stream, audio_pos, len);
+
+    audio_pos += len;
+    audio_len -= len;
 }
 
 void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next)
@@ -190,11 +229,14 @@ int days_in_month(int mon, int year)
 int main(int argc, char **argv)
 {
     DateTimeFormat format = de;
+    Timer timer;
 
-    // TODO: add other data/time formats
-    // Argparse with getopt()
+    Uint8 *wav_buffer;
+
+    bool using_timer = false;
+
     int arg;
-    while ((arg = getopt(argc, argv, "hf:")) != -1) {
+    while ((arg = getopt(argc, argv, "hf:t:")) != -1) {
         switch (arg) {
         case 'h':
             // Help page
@@ -203,14 +245,71 @@ int main(int argc, char **argv)
                    "-h: display help\n"
                    "-f [de us]: change the time format\n"
                    "-u: display usage\n\n"
+                   "-t [NUMBER]: timer in minutes\n"
                    "controls\n"
                    "vim keys - hjkl or arrow keys: move around\n"
                    "q or esc: exit\n");
-            exit(0);
+            return 0;
             break;
         case 'f':
+            if (using_timer) {
+                fprintf(stderr, "Cannot specify format when '-t' is given\n");
+                return 1;
+            }
             format = strtimeformat(optarg);
             break;
+        case 't':
+        {
+            // Read optarg into number and intialize SDL to play the sound
+
+            using_timer = true;
+            format = timer_fmt;
+
+            char *end;
+            timer.mins = strtol(optarg, &end, 0);
+            if (*end != ':') {
+                fprintf(stderr, "Expected string in the format: MINUTES:SECONDS\n");
+                return 1;
+            }
+
+            // If *end is '\0', the whole string was read as a number (see man
+            // strtol(3))
+            timer.secs = strtol(end + 1, &end, 0);
+            if (*end != '\0') {
+                fprintf(stderr, "Expected string in the format: MINUTES:SECONDS\n");
+                return 1;
+            }
+            if (timer.mins < 0 || timer.secs < 0) {
+                fprintf(stderr, "Timer cannot be negative\n");
+                return 1;
+            }
+
+            // Initialize SDL for playing sound after timer has ended
+            if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+                fprintf(stderr, "Could not initialize SDL\n");
+                return 1;
+            }
+
+            Uint32 wav_length;
+            SDL_AudioSpec wav_spec;
+            if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) ==
+                NULL) {
+                fprintf(stderr, "Could not open audio file '%s'\n", SOUND_PATH);
+                return 1;
+            }
+            wav_spec.callback = audio_callback;
+            wav_spec.userdata = NULL;
+
+            audio_pos = wav_buffer;
+            audio_len = wav_length;
+
+            /* Open the audio device */
+            if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
+                fprintf(stderr, "Could not open audio: %s\n", SDL_GetError());
+                return 1;
+            }
+            break;
+        }
         case '?':
         default:
             return 1;
@@ -222,7 +321,6 @@ int main(int argc, char **argv)
 
     // On interrupt (Ctrl+c) exit
     signal(SIGINT, finish);
-    signal(SIGKILL, finish);
     signal(SIGSEGV, finish);
 
     // Init
@@ -267,9 +365,12 @@ int main(int argc, char **argv)
     time_t cur_time = time(NULL);
     struct tm *local_time = localtime(&cur_time);
 
+    if (using_timer)
+        timer.start = cur_time + timer.mins * 60 + timer.secs;
+
     // Timer on with to update the clock
-    int timer = 0;
-    const int timer_re = 4;
+    int redraw_timer = 0;
+    const int redraw_reset = 4;
 
     // How much we want to sleep every tick
     const struct timespec request = {0, NANO_INTERVAL};
@@ -286,7 +387,8 @@ int main(int argc, char **argv)
             running = false;
             break;
         /* If we move here we also need to redraw the screen, hence the call to
-         * erase() which isn't called normally */
+         * erase() which isn't called normally, as the numbers just get drawn
+         * over */
         case KEY_LEFT:
         case KEY_h:
             erase();
@@ -316,19 +418,41 @@ int main(int argc, char **argv)
         }
 
         // Update clock every four ticks (1 second)
-        timer++;
-        if (timer == timer_re) {
+        redraw_timer++;
+        if (redraw_timer == redraw_reset) {
             cur_time = time(NULL);
-            *local_time = *localtime(&cur_time);
+
+            if (using_timer) {
+                cur_time = timer.start - cur_time;
+
+                if (cur_time < 0) {
+                    // Play the 'ding' sound
+                    SDL_PauseAudio(0);
+                    while (audio_len > 0) {
+                        SDL_Delay(100);
+                    }
+                    SDL_CloseAudio();
+                    SDL_FreeWAV(wav_buffer);
+
+                    endwin();
+                    printf("Timer over\n");
+                    return 0;
+                }
+
+                // The timer is relative to 1970-1-1 00:00:00 and localtime()
+                // would change the hour value according to the timezone.
+                *local_time = *gmtime(&cur_time);
+            } else {
+                *local_time = *localtime(&cur_time);
+            }
 
             // Color for the clock, defined in init()
             attron(COLOR_PAIR(1));
-            move(dimensions.y, dimensions.x);
 
             strftime(buf, sizeof(buf), format.fmt, local_time);
 
             // Draw the date and time to the screen
-            addstr(buf);
+            mvaddstr(dimensions.y, dimensions.x, buf);
 
             // Draw the previous and next times
             struct tm last, next;
@@ -344,7 +468,7 @@ int main(int argc, char **argv)
 
             refresh();
 
-            timer = 0;
+            redraw_timer = 0;
 
             thrd_sleep(&request, NULL);
         }

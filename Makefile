@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Werror -Wextra -std=c11 -pedantic -ggdb
-LIBS = -lncurses
+CFLAGS = -Wall -Wextra -std=c11 -pedantic -ggdb
+LIBS = -lncurses $(shell pkg-config --libs sdl2)
 
 SRC = shime.c
 EXE = shime
