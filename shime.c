@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
- /* TODO: specify strftime() format via command line */
+/* TODO: specify strftime() format via command line */
 
 #include <assert.h>
 #include <getopt.h>
@@ -44,7 +44,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define START_Y 3
 #define START_X 5
 
-#define NANO_INTERVAL 25000000
+#define NANO_INTERVAL 10000000
 
 #define HOUR_IN_SECS 60 * 60
 
@@ -268,7 +268,8 @@ int main(int argc, char **argv)
             char *end;
             timer.mins = strtol(optarg, &end, 0);
             if (*end != ':') {
-                fprintf(stderr, "Expected string in the format: MINUTES:SECONDS\n");
+                fprintf(stderr,
+                        "Expected string in the format: MINUTES:SECONDS\n");
                 return 1;
             }
 
@@ -276,7 +277,8 @@ int main(int argc, char **argv)
             // strtol(3))
             timer.secs = strtol(end + 1, &end, 0);
             if (*end != '\0') {
-                fprintf(stderr, "Expected string in the format: MINUTES:SECONDS\n");
+                fprintf(stderr,
+                        "Expected string in the format: MINUTES:SECONDS\n");
                 return 1;
             }
             if (timer.mins < 0 || timer.secs < 0) {
@@ -370,7 +372,7 @@ int main(int argc, char **argv)
 
     // Timer on with to update the clock
     int redraw_timer = 0;
-    const int redraw_reset = 4;
+    const int redraw_reset = 50;
 
     // How much we want to sleep every tick
     const struct timespec request = {0, NANO_INTERVAL};
@@ -378,6 +380,8 @@ int main(int argc, char **argv)
     char buf[128];
 
     bool running = true;
+
+    bool need_to_erase = false;
 
     // The main loop: update, draw, sleep
     while (running) {
@@ -391,25 +395,25 @@ int main(int argc, char **argv)
          * over */
         case KEY_LEFT:
         case KEY_h:
-            erase();
+            need_to_erase = true;
             if ((dimensions.x - 1) > 0)
                 dimensions.x -= 1;
             break;
         case KEY_DOWN:
         case KEY_j:
-            erase();
+            need_to_erase = true;
             if ((dimensions.y + 1) < dimensions.height - 1)
                 dimensions.y += 1;
             break;
         case KEY_UP:
         case KEY_k:
-            erase();
+            need_to_erase = true;
             if ((dimensions.y - 1) > 0)
                 dimensions.y -= 1;
             break;
         case KEY_RIGHT:
         case KEY_l:
-            erase();
+            need_to_erase = true;
             if ((dimensions.x + 1) < dimensions.width - 19)
                 dimensions.x += 1;
             break;
@@ -420,6 +424,11 @@ int main(int argc, char **argv)
         // Update clock every four ticks (1 second)
         redraw_timer++;
         if (redraw_timer == redraw_reset) {
+            if (need_to_erase) {
+                erase();
+                need_to_erase = false;
+            }
+
             cur_time = time(NULL);
 
             if (using_timer) {
@@ -469,9 +478,8 @@ int main(int argc, char **argv)
             refresh();
 
             redraw_timer = 0;
-
-            thrd_sleep(&request, NULL);
         }
+        thrd_sleep(&request, NULL);
     }
 
     endwin();
