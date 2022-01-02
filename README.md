@@ -34,4 +34,4 @@ At the end, a short 'ding' sound will play and the program will exit.
 
 ## External Files
 
-"Bell, Counter, A.wav" by InspectorJ ([www.jshaw.co.uk](www.jshaw.co.uk)) of [Freesound.org](Freesound.org)
+"Bell, Counter, A.wav" by InspectorJ ([www.jshaw.co.uk](https://www.jshaw.co.uk)) of [Freesound.org](https://freesound.org)
