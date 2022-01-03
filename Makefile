@@ -32,6 +32,7 @@ install: $(EXE)
 uninstall:
 	rm "$(DESTDIR)/bin/$(EXE)"
 	rm "$(DESTDIR)/share/$(EXE)/$(SOUND)"
+	rmdir "$(DESTDIR)/share/$(EXE)"
 
 %.o: %.c
 	$(CC) -c -o $@ $< $(CFLAGS)
