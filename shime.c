@@ -272,7 +272,7 @@ int main(int argc, char **argv)
             /* Read minutes (up to ':') */
             char *end;
             timer.mins = strtol(optarg, &end, 0);
-            if (*end != ':') {
+            if (*end != ':' || (*end == ':' && *(end + 1) == '\0')) {
                 fprintf(stderr,
                         "Expected string in the format: MINUTES:SECONDS\n");
                 return 1;
