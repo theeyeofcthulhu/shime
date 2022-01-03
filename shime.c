@@ -84,6 +84,12 @@ typedef struct {
     int secs;
 } Timer;
 
+enum ClockType {
+    CLOCK,
+    TIMER,
+    STOPWATCH,
+};
+
 /* SDL Audio variables (for timer) */
 Uint8 *audio_pos;
 Uint32 audio_len;
@@ -236,12 +242,15 @@ int main(int argc, char **argv)
 
     Uint8 *wav_buffer;
 
-    bool using_timer = false;
+    enum ClockType mode = CLOCK;
+
+    int mutually_exclusive_opts = 0;
 
     int arg;
-    while ((arg = getopt(argc, argv, "hf:t:")) != -1) {
+    while ((arg = getopt(argc, argv, "hf:t:i")) != -1) {
         switch (arg) {
         case 'h':
+        {
             /* Help page */
             printf("shime Copyright (C) 2021 theeyeofcthulhu on GitHub\n"
                    "\n"
@@ -249,24 +258,27 @@ int main(int argc, char **argv)
                    "-h:                     Display this message and exit\n"
                    "-f [de us]:             Change the time format\n"
                    "-t [MINUTES:SECONDS]:   Start a timer with plays a sound on finish\n"
+                   "-i:                     Incremental timer\n"
                    "\n"
                    "controls\n"
                    "vim keys - hjkl or arrow keys: move around\n"
                    "q or esc: exit\n");
             return 0;
             break;
+        }
         case 'f':
-            if (using_timer) {
-                fprintf(stderr, "Cannot specify format when '-t' is given\n");
-                return 1;
-            }
+        {
+            mutually_exclusive_opts++;
+
             format = strtimeformat(optarg);
             break;
+        }
         case 't':
         {
             /* Read optarg into number and intialize SDL to play the sound */
+            mutually_exclusive_opts++;
 
-            using_timer = true;
+            mode = TIMER;
             format = timer_fmt;
 
             /* Read minutes (up to ':') */
@@ -318,11 +330,23 @@ int main(int argc, char **argv)
             }
             break;
         }
+        case 'i':
+        {
+            mutually_exclusive_opts++;
+
+            mode = STOPWATCH;
+            format = timer_fmt;
+            break;
+        }
         case '?':
         default:
             return 1;
             break;
         }
+    }
+    if(mutually_exclusive_opts > 1) {
+        fprintf(stderr, "Specified mutually exclusive options\n");
+        return 1;
     }
 
     /* Ncurses init logic */
@@ -374,8 +398,10 @@ int main(int argc, char **argv)
     time_t cur_time = time(NULL);
     struct tm *local_time = localtime(&cur_time);
 
-    if (using_timer)
+    if (mode == TIMER)
         timer.start = cur_time + timer.mins * 60 + timer.secs;
+    else if (mode == STOPWATCH)
+        timer.start = cur_time;
 
     /* Timer on with to update the clock */
     const int redraw_reset = 50;
@@ -387,7 +413,6 @@ int main(int argc, char **argv)
     char buf[128];
 
     bool running = true;
-
     bool need_to_erase = false;
 
     /* The main loop: update, draw, sleep */
@@ -438,7 +463,9 @@ int main(int argc, char **argv)
 
             cur_time = time(NULL);
 
-            if (using_timer) {
+            switch(mode) {
+            case TIMER:
+            {
                 /* How far away are we from reaching start? */
                 cur_time = timer.start - cur_time;
 
@@ -460,8 +487,19 @@ int main(int argc, char **argv)
                 /* The timer is relative to 1970-1-1 00:00:00 and localtime() */
                 /* would change the hour value according to the timezone. */
                 *local_time = *gmtime(&cur_time);
-            } else {
+                break;
+            }
+            case STOPWATCH:
+            {
+                cur_time = cur_time - timer.start;
+                *local_time = *gmtime(&cur_time);
+                break;
+            }
+            case CLOCK:
+            {
                 *local_time = *localtime(&cur_time);
+                break;
+            }
             }
 
             /* Color for the clock, defined in init() */
