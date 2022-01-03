@@ -28,9 +28,14 @@ The program can be run in timer mode:
 ```console
 $ shime -t 00:30
 ```
-The time to count down is specified like: MINUTES:SECOND.
+The time to count down is specified like: MINUTES:SECONDS.
 The remaining time will be displayed on the screen.
 At the end, a short 'ding' sound will play and the program will exit.
+
+For other options see
+```console
+$ shime -h
+```
 
 ## External Files
 
