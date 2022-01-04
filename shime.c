@@ -80,7 +80,6 @@ typedef struct {
 
 typedef struct {
     time_t start;
-    int mins;
     int secs;
 } Timer;
 
@@ -95,6 +94,8 @@ Uint8 *audio_pos;
 Uint32 audio_len;
 
 DateTimeFormat strtimeformat(char *str);
+
+int strtosecs(char* str);
 
 void finish(int sig);
 
@@ -115,6 +116,58 @@ DateTimeFormat strtimeformat(char *str)
         fprintf(stderr, "Invalid format: '%s'\n", str);
         exit(1);
     }
+}
+
+/* Valid strings:
+ * SECONDS as int
+ * MINUTES:SECONDS
+ * HOURS:MINUTES:SECONDS 
+ *
+ * returns -1 on failure */
+int strtosecs(char* str)
+{
+    int units[3] = {0}; /* {HOURS, MINUTES, SECONDS} */
+    char *end, *saved;
+
+    /* Read hours (up to ':') */
+    units[0] = strtol(str, &end, 0);
+    if (*end == '\0') {
+        units[2] = units[0];
+        units[0] = 0;
+        goto return_calculation;
+    }
+    if (*end != ':' || (*end == ':' && *(end + 1) == '\0') || end == str) {
+        return -1;
+    }
+    saved = end + 1;
+
+    /* Read minutes */
+    units[1] = strtol(end + 1, &end, 0);
+    /* If *end is '\0', the whole string was read as a number (see man
+     * strtol(3)) */
+    if (*end == '\0') {
+        units[2] = units[1];
+        units[1] = units[0];
+        units[0] = 0;
+        goto return_calculation;
+    }
+    if (*end != ':' || (*end == ':' && *(end + 1) == '\0') || end == saved) {
+        return -1;
+    }
+    saved = end + 1;
+
+    /* Read seconds */
+    units[2] = strtol(end + 1, &end, 0);
+    if (*end != '\0' || end == saved) {
+        return -1;
+    }
+
+return_calculation:
+    if (units[0] < 0 || units[1] < 0 || units[2] < 0) {
+        return -1;
+    }
+
+    return units[0] * 60 * 60 + units[1] * 60 + units[2];
 }
 
 /* Cleanly exit ncurses */
@@ -257,7 +310,9 @@ int main(int argc, char **argv)
                    "options:\n"
                    "-h:                     Display this message and exit\n"
                    "-f [de us]:             Change the time format\n"
-                   "-t [MINUTES:SECONDS]:   Start a timer with plays a sound on finish\n"
+                   "-t [TIME]:              Start a timer which plays a sound on finish.\n"
+                   "                        TIME is a string in this format: HOURS:MINUTES:SECONDS.\n"
+                   "                        HOURS or MINUTES and HOURS can be left out.\n"
                    "-i:                     Incremental timer\n"
                    "\n"
                    "controls\n"
@@ -281,26 +336,12 @@ int main(int argc, char **argv)
             mode = TIMER;
             format = timer_fmt;
 
-            /* Read minutes (up to ':') */
-            char *end;
-            timer.mins = strtol(optarg, &end, 0);
-            if (*end != ':' || (*end == ':' && *(end + 1) == '\0')) {
-                fprintf(stderr,
-                        "Expected string in the format: MINUTES:SECONDS\n");
-                return 1;
-            }
-
-            /* Read seconds */
-            timer.secs = strtol(end + 1, &end, 0);
-            /* If *end is '\0', the whole string was read as a number (see man
-             * strtol(3)) */
-            if (*end != '\0') {
-                fprintf(stderr,
-                        "Expected string in the format: MINUTES:SECONDS\n");
-                return 1;
-            }
-            if (timer.mins < 0 || timer.secs < 0) {
-                fprintf(stderr, "Timer cannot be negative\n");
+            timer.secs = strtosecs(optarg);
+            if(timer.secs <= 0) {
+                fprintf(stderr, 
+                        "Failed to parse '%s' to a timer. "
+                        "Expected HOURS:MINS:SECONDS (or MINS:SECONDS / SECONDS) as a positive integer.\n", 
+                        optarg);
                 return 1;
             }
 
@@ -399,7 +440,7 @@ int main(int argc, char **argv)
     struct tm *local_time = localtime(&cur_time);
 
     if (mode == TIMER)
-        timer.start = cur_time + timer.mins * 60 + timer.secs;
+        timer.start = cur_time + timer.secs;
     else if (mode == STOPWATCH)
         timer.start = cur_time;
 
