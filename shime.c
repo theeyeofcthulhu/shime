@@ -41,9 +41,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define KEY_l 108
 #define KEY_esc 27
 
-#define NANO_INTERVAL 10000000
+#define BUF_SZ 128
 
-#define HOUR_IN_SECS 60 * 60
+#define NANO_INTERVAL 10000000
 
 #define SOUND_PATH "Bell, Counter, A.wav"
 #ifndef BUILD_SOUND_PATH
@@ -92,6 +92,9 @@ enum ClockType {
 /* SDL Audio variables (for timer) */
 Uint8 *audio_pos;
 Uint32 audio_len;
+
+bool print_elapsed_on_exit = false;
+time_t global_start;
 
 DateTimeFormat strtimeformat(char *str);
 int strtosecs(char* str);
@@ -175,6 +178,12 @@ return_calculation:
 void finish(int sig)
 {
     endwin();
+    if (print_elapsed_on_exit) {
+        time_t elapsed =  time(NULL) - global_start;
+        char buf[BUF_SZ];
+        strftime(buf, sizeof(buf), "Elapsed: %H:%M:%S\n", gmtime(&elapsed));
+        printf("%s", buf);
+    }
     if (sig == SIGSEGV) {
         fprintf(stderr, "Segfault\n");
         exit(1);
@@ -182,6 +191,7 @@ void finish(int sig)
     exit(0);
 }
 
+/* Gets ncurses boundaries and sets y and x to middle of them */
 void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len)
 {
     getmaxyx(stdscr, d->height, d->width);
@@ -304,12 +314,12 @@ int main(int argc, char **argv)
 
     Uint8 *wav_buffer;
 
-    Timer timer;
     enum ClockType mode = CLOCK;
+    Timer timer;
 
     int mutually_exclusive_opts = 0;
     int arg;
-    while ((arg = getopt(argc, argv, "hf:t:i")) != -1) {
+    while ((arg = getopt(argc, argv, "hf:t:ie")) != -1) {
         switch (arg) {
         case 'h':
         {
@@ -317,12 +327,13 @@ int main(int argc, char **argv)
             printf("shime Copyright (C) 2021 theeyeofcthulhu on GitHub\n"
                    "\n"
                    "options:\n"
-                   "-h:                     Display this message and exit\n"
-                   "-f [de us]:             Change the time format\n"
-                   "-t [TIME]:              Start a timer which plays a sound on finish.\n"
-                   "                        TIME is a string in this format: HOURS:MINUTES:SECONDS.\n"
-                   "                        HOURS or MINUTES and HOURS can be left out.\n"
-                   "-i:                     Incremental timer\n"
+                   "-h:           Display this message and exit\n"
+                   "-f [de us]:   Change the time format\n"
+                   "-t [TIME]:    Start a timer which plays a sound on finish.\n"
+                   "              TIME is a string in this format: HOURS:MINUTES:SECONDS.\n"
+                   "              HOURS or MINUTES and HOURS can be left out.\n"
+                   "-i:           Incremental timer\n"
+                   "-e:           Print elapsed time at exit\n"
                    "\n"
                    "controls\n"
                    "vim keys - hjkl or arrow keys: move around\n"
@@ -386,6 +397,11 @@ int main(int argc, char **argv)
 
             mode = STOPWATCH;
             format = timer_fmt;
+            break;
+        }
+        case 'e':
+        {
+            print_elapsed_on_exit = true;
             break;
         }
         case '?':
@@ -452,6 +468,8 @@ int main(int argc, char **argv)
     else if (mode == STOPWATCH)
         timer.start = cur_time;
 
+    global_start = cur_time;
+
     /* Timer on with to update the clock */
     const int redraw_reset = 50;
     int redraw_timer = redraw_reset - 1; /* Start timer almost at reset so we draw instantly */
@@ -459,7 +477,7 @@ int main(int argc, char **argv)
     /* How much we want to sleep every tick */
     const struct timespec sleep_request = {0, NANO_INTERVAL};
 
-    char buf[128];
+    char buf[BUF_SZ];
 
     bool running = true;
     bool need_to_erase = false;
@@ -532,9 +550,7 @@ int main(int argc, char **argv)
                     SDL_CloseAudio();
                     SDL_FreeWAV(wav_buffer);
 
-                    endwin();
-                    printf("Timer over\n");
-                    return 0;
+                    finish(0);
                 }
 
                 /* The timer is relative to 1970-1-1 00:00:00 and localtime() */
@@ -582,7 +598,5 @@ int main(int argc, char **argv)
         thrd_sleep(&sleep_request, NULL);
     }
 
-    endwin();
-
-    return 0;
+    finish(0);
 }
