@@ -143,7 +143,7 @@ int strtosecs(char* str)
     saved = end + 1;
 
     /* Read minutes */
-    units[1] = strtol(end + 1, &end, 0);
+    units[1] = strtol(saved, &end, 0);
     /* If *end is '\0', the whole string was read as a number (see man
      * strtol(3)) */
     if (*end == '\0') {
@@ -158,7 +158,7 @@ int strtosecs(char* str)
     saved = end + 1;
 
     /* Read seconds */
-    units[2] = strtol(end + 1, &end, 0);
+    units[2] = strtol(saved, &end, 0);
     if (*end != '\0' || end == saved) {
         return -1;
     }
@@ -302,14 +302,12 @@ int main(int argc, char **argv)
     DateTimeFormat format = de;
     int clock_len;
 
-    Timer timer;
-
     Uint8 *wav_buffer;
 
+    Timer timer;
     enum ClockType mode = CLOCK;
 
     int mutually_exclusive_opts = 0;
-
     int arg;
     while ((arg = getopt(argc, argv, "hf:t:i")) != -1) {
         switch (arg) {
@@ -459,7 +457,7 @@ int main(int argc, char **argv)
     int redraw_timer = redraw_reset - 1; /* Start timer almost at reset so we draw instantly */
 
     /* How much we want to sleep every tick */
-    const struct timespec request = {0, NANO_INTERVAL};
+    const struct timespec sleep_request = {0, NANO_INTERVAL};
 
     char buf[128];
 
@@ -581,7 +579,7 @@ int main(int argc, char **argv)
 
             redraw_timer = 0;
         }
-        thrd_sleep(&request, NULL);
+        thrd_sleep(&sleep_request, NULL);
     }
 
     endwin();
