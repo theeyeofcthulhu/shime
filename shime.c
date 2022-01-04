@@ -94,10 +94,11 @@ Uint8 *audio_pos;
 Uint32 audio_len;
 
 DateTimeFormat strtimeformat(char *str);
-
 int strtosecs(char* str);
 
 void finish(int sig);
+
+void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len);
 
 void audio_callback(void *userdata, Uint8 *stream, int len);
 
@@ -179,6 +180,14 @@ void finish(int sig)
         exit(1);
     }
     exit(0);
+}
+
+void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len)
+{
+    getmaxyx(stdscr, d->height, d->width);
+
+    d->y = d->height / 2;
+    d->x = d->width / 2 - clock_len / 2;
 }
 
 /* For SDL2 audio playing: copy current audio data (audio_pos) into stream */
@@ -291,6 +300,8 @@ int days_in_month(int mon, int year)
 int main(int argc, char **argv)
 {
     DateTimeFormat format = de;
+    int clock_len;
+
     Timer timer;
 
     Uint8 *wav_buffer;
@@ -390,6 +401,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    clock_len = strlen(format.fmt);
+
     /* Ncurses init logic */
 
     /* On interrupt (Ctrl+c) exit */
@@ -430,10 +443,7 @@ int main(int argc, char **argv)
 
     /* Init dimensions */
     Dimensions dimensions;
-    getmaxyx(stdscr, dimensions.height, dimensions.width);
-
-    dimensions.y = dimensions.height / 2;
-    dimensions.x = dimensions.width / 2 - (strlen(format.fmt) / 2);
+    getmaxyx_and_go_to_middle(&dimensions, clock_len);
 
     /* Initialize and get the localtime */
     time_t cur_time = time(NULL);
@@ -489,6 +499,10 @@ int main(int argc, char **argv)
             need_to_erase = true;
             if ((dimensions.x + 1) < dimensions.width - 19)
                 dimensions.x += 1;
+            break;
+        case KEY_RESIZE: 
+            need_to_erase = true;
+            getmaxyx_and_go_to_middle(&dimensions, clock_len);
             break;
         default:
             break;
