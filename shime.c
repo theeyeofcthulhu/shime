@@ -495,25 +495,25 @@ int main(int argc, char **argv)
         case KEY_LEFT:
         case KEY_h:
             need_to_erase = true;
-            if ((dimensions.x - 1) > 0)
+            if (dimensions.x - 1 > 0)
                 dimensions.x -= 1;
             break;
         case KEY_DOWN:
         case KEY_j:
             need_to_erase = true;
-            if ((dimensions.y + 1) < dimensions.height - 1)
+            if (dimensions.y + 1 < dimensions.height - 1)
                 dimensions.y += 1;
             break;
         case KEY_UP:
         case KEY_k:
             need_to_erase = true;
-            if ((dimensions.y - 1) > 0)
+            if (dimensions.y - 1 > 0)
                 dimensions.y -= 1;
             break;
         case KEY_RIGHT:
         case KEY_l:
             need_to_erase = true;
-            if ((dimensions.x + 1) < dimensions.width - 19)
+            if (dimensions.x + 1 < dimensions.width - clock_len)
                 dimensions.x += 1;
             break;
         case KEY_RESIZE: 
