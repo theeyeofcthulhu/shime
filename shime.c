@@ -466,7 +466,7 @@ int main(int argc, char **argv)
 
     /* The main loop: update, draw, sleep */
     while (running) {
-        switch (wgetch(stdscr)) {
+        switch (getch()) {
         case KEY_esc:
         case KEY_q:
             running = false;
