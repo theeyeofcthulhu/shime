@@ -379,12 +379,19 @@ int main(int argc, char **argv)
             format = timer_fmt;
 
             timer.secs = strtosecs(optarg);
-            if(timer.secs <= 0) {
+            if (timer.secs <= 0) {
                 fprintf(stderr, 
                         "Failed to parse '%s' to a timer. "
                         "Expected HOURS:MINS:SECONDS (or MINS:SECONDS / SECONDS) as a positive integer.\n", 
                         optarg);
                 return 1;
+            }
+
+            struct tm timer_broken_down;
+            timertime(timer.secs, &timer_broken_down);
+            if (timer_broken_down.tm_hour >= 99) {
+                fprintf(stderr, "Specified timer is too long\n");
+                exit(1);
             }
 
             /* Initialize SDL for playing sound after timer has ended */
@@ -437,8 +444,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    clock_len = strlen(format.fmt);
-
     /* Ncurses init logic */
 
     /* On interrupt (Ctrl+c) exit */
@@ -476,6 +481,8 @@ int main(int argc, char **argv)
     start_color();
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
+
+    clock_len = strlen(format.fmt);
 
     /* Init dimensions */
     Dimensions dimensions;
