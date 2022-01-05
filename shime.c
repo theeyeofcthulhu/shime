@@ -90,13 +90,6 @@ enum ClockType {
     STOPWATCH,
 };
 
-/* SDL Audio variables (for timer) */
-Uint8 *audio_pos;
-Uint32 audio_len;
-
-bool print_elapsed_on_exit = false;
-time_t global_start;
-
 DateTimeFormat strtimeformat(char *str);
 int strtosecs(char* str);
 
@@ -112,6 +105,13 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool ti
 void timertime(time_t in, struct tm *out);
 
 int days_in_month(int mon, int year);
+
+/* SDL Audio variables (for timer ding sound) */
+Uint8 *audio_pos;
+Uint32 audio_len;
+
+bool print_elapsed_on_exit = false;
+time_t global_start;
 
 DateTimeFormat strtimeformat(char *str)
 {
@@ -335,6 +335,7 @@ int main(int argc, char **argv)
     int clock_len;
 
     Uint8 *wav_buffer;
+    SDL_AudioSpec wav_spec;
 
     enum ClockType mode = CLOCK;
     Timer timer;
@@ -401,7 +402,6 @@ int main(int argc, char **argv)
             }
 
             Uint32 wav_length;
-            SDL_AudioSpec wav_spec;
             /* Try to open in current folder and then in install folder */
             if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) == NULL &&
                 SDL_LoadWAV(BUILD_SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) == NULL) {
@@ -413,11 +413,6 @@ int main(int argc, char **argv)
 
             audio_pos = wav_buffer;
             audio_len = wav_length;
-
-            if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
-                fprintf(stderr, "Could not open audio: %s\n", SDL_GetError());
-                return 1;
-            }
             break;
         }
         case 'i':
@@ -572,6 +567,10 @@ int main(int argc, char **argv)
 
                 /* Finished */
                 if (cur_time < 0) {
+                    if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
+                        fprintf(stderr, "Could not open audio: %s\n", SDL_GetError());
+                        return 1;
+                    }
                     /* Play the 'ding' sound */
                     SDL_PauseAudio(0);
                     while (audio_len > 0) {
