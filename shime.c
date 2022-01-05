@@ -106,7 +106,10 @@ void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len);
 void audio_callback(void *userdata, Uint8 *stream, int len);
 
 void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next);
-void get_last_next_time(struct tm cur, struct tm *last, struct tm *next);
+void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool timer);
+
+void timertime(time_t in, struct tm *out);
+void timerformat(char *out, size_t max, const char *format, const struct tm *in);
 
 int days_in_month(int mon, int year);
 
@@ -231,7 +234,7 @@ void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next)
 
 /* Calculate the last and the next time unit for every unit in cur
  * Store in *last and *next */
-void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
+void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool timer)
 {
     int year = cur.tm_year + 1900;
     int mon = cur.tm_mon + 1;
@@ -269,12 +272,45 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next)
     next->tm_year = cur.tm_year + 1;
     last->tm_year = cur.tm_year - 1;
 
-    get_last_next_hours_mins_or_seconds(cur.tm_hour, 24, &last->tm_hour,
-                                        &next->tm_hour); /* Hours */
+    if (timer) {
+        next->tm_hour = cur.tm_hour + 1;
+        last->tm_hour = cur.tm_hour - 1 >= 0 ? cur.tm_hour - 1 : 99;
+    } else {
+        get_last_next_hours_mins_or_seconds(cur.tm_hour, 24, &last->tm_hour,
+                                            &next->tm_hour); /* Hours */
+    }
+
     get_last_next_hours_mins_or_seconds(cur.tm_min, 60, &last->tm_min,
                                         &next->tm_min); /* Minutes */
     get_last_next_hours_mins_or_seconds(cur.tm_sec, 60, &last->tm_sec,
                                         &next->tm_sec); /* Seconds */
+}
+
+/* Like localtime(3) but for a timer which doesn't want tm_hour bound from 0 to 23 */
+void timertime(time_t in, struct tm *out)
+{
+    out->tm_mday = out->tm_mon = out->tm_year = out->tm_wday = out->tm_yday = out->tm_isdst = 0;
+
+    out->tm_sec = in % 60;
+    out->tm_min = (in % (60 * 60)) / 60;
+    out->tm_hour = in / (60 * 60);
+}
+
+/* If *format begins with %H: print the hour first and then call strftime
+ * Otherwise: just pass to strftime 
+ * Have this because strftime does not allow tm_hour > 23 */
+void timerformat(char *out, size_t max, const char *format, const struct tm *in)
+{
+    if (format[0] == '%' && format[1] == 'H') {
+        int printed = snprintf(out, max, "%02d", in->tm_hour);
+
+        char *new_out = out + printed;
+        max -= printed;
+
+        strftime(new_out, max, format + 2, in);
+    } else {
+        strftime(out, max, format, in);
+    }
 }
 
 /* Return the days a month has */
@@ -481,6 +517,7 @@ int main(int argc, char **argv)
 
     bool running = true;
     bool need_to_erase = false;
+    bool is_timer = mode == TIMER || mode == STOPWATCH;
 
     /* The main loop: update, draw, sleep */
     while (running) {
@@ -555,13 +592,13 @@ int main(int argc, char **argv)
 
                 /* The timer is relative to 1970-1-1 00:00:00 and localtime() */
                 /* would change the hour value according to the timezone. */
-                *local_time = *gmtime(&cur_time);
+                timertime(cur_time, local_time);
                 break;
             }
             case STOPWATCH:
             {
                 cur_time = cur_time - timer.start;
-                *local_time = *gmtime(&cur_time);
+                timertime(cur_time, local_time);
                 break;
             }
             case CLOCK:
@@ -574,21 +611,21 @@ int main(int argc, char **argv)
             /* Color for the clock, defined in init() */
             attron(COLOR_PAIR(1));
 
-            strftime(buf, sizeof(buf), format.fmt, local_time);
+            timerformat(buf, sizeof(buf), format.fmt, local_time);
 
             /* Draw the date and time to the screen */
             mvaddstr(dimensions.y, dimensions.x, buf);
 
             /* Draw the previous and next times */
             struct tm last, next;
-            get_last_next_time(*local_time, &last, &next);
+            get_last_next_time(*local_time, &last, &next, is_timer);
 
             attron(COLOR_PAIR(2));
 
-            strftime(buf, sizeof(buf), format.last_next, &last);
+            timerformat(buf, sizeof(buf), format.last_next, &last);
             mvaddstr(dimensions.y - 1, dimensions.x, buf);
 
-            strftime(buf, sizeof(buf), format.last_next, &next);
+            timerformat(buf, sizeof(buf), format.last_next, &next);
             mvaddstr(dimensions.y + 1, dimensions.x, buf);
 
             refresh();
