@@ -97,18 +97,12 @@ void finish(int sig);
 
 void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len);
 
-void audio_callback(void *userdata, Uint8 *stream, int len);
-
 void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next);
 void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool timer);
 
 void timertime(time_t in, struct tm *out);
 
 int days_in_month(int mon, int year);
-
-/* SDL Audio variables (for timer ding sound) */
-Uint8 *audio_pos;
-Uint32 audio_len;
 
 bool print_elapsed_on_exit = false;
 time_t global_start;
@@ -203,21 +197,6 @@ void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len)
 
     d->y = d->height / 2;
     d->x = d->width / 2 - clock_len / 2;
-}
-
-/* For SDL2 audio playing: copy current audio data (audio_pos) into stream */
-void audio_callback(void *userdata, Uint8 *stream, int len)
-{
-    (void)userdata;
-
-    if (audio_len == 0)
-        return;
-
-    len = len > (int)audio_len ? (int)audio_len : len;
-    SDL_memcpy(stream, audio_pos, len);
-
-    audio_pos += len;
-    audio_len -= len;
 }
 
 void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next)
@@ -334,6 +313,8 @@ int main(int argc, char **argv)
     DateTimeFormat format = de;
     int clock_len;
 
+    /* SDL Audio variables (for timer ding sound) */
+    Uint32 audio_len;
     Uint8 *wav_buffer;
     SDL_AudioSpec wav_spec;
 
@@ -401,18 +382,12 @@ int main(int argc, char **argv)
                 return 1;
             }
 
-            Uint32 wav_length;
             /* Try to open in current folder and then in install folder */
-            if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) == NULL &&
-                SDL_LoadWAV(BUILD_SOUND_PATH, &wav_spec, &wav_buffer, &wav_length) == NULL) {
+            if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &audio_len) == NULL &&
+                SDL_LoadWAV(BUILD_SOUND_PATH, &wav_spec, &wav_buffer, &audio_len) == NULL) {
                 fprintf(stderr, "Could not open audio file: %s\n", SDL_GetError());
                 return 1;
             }
-            wav_spec.callback = audio_callback;
-            wav_spec.userdata = NULL;
-
-            audio_pos = wav_buffer;
-            audio_len = wav_length;
             break;
         }
         case 'i':
@@ -567,16 +542,22 @@ int main(int argc, char **argv)
 
                 /* Finished */
                 if (cur_time < 0) {
-                    if (SDL_OpenAudio(&wav_spec, NULL) < 0) {
-                        fprintf(stderr, "Could not open audio: %s\n", SDL_GetError());
+                    SDL_AudioDeviceID deviceID;
+                    if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) < 0) {
+                        fprintf(stderr, "Could not open audio device: %s\n", SDL_GetError());
                         return 1;
                     }
-                    /* Play the 'ding' sound */
-                    SDL_PauseAudio(0);
-                    while (audio_len > 0) {
+                    if (SDL_QueueAudio(deviceID, wav_buffer, audio_len)) {
+                        fprintf(stderr, "Could not enqueue audio: %s\n", SDL_GetError());
+                        return 1;
+                    }
+                    SDL_PauseAudioDevice(deviceID, 0);
+
+                    while (SDL_GetQueuedAudioSize(deviceID) > 0) {
                         SDL_Delay(100);
                     }
-                    SDL_CloseAudio();
+
+                    SDL_CloseAudioDevice(deviceID);
                     SDL_FreeWAV(wav_buffer);
 
                     finish(0);
