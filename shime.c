@@ -40,6 +40,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define KEY_j 106
 #define KEY_k 107
 #define KEY_l 108
+#define KEY_r 114
 #define KEY_esc 27
 
 #define BUF_SZ 128
@@ -339,9 +340,10 @@ int main(int argc, char **argv)
                    "-i:           Incremental timer\n"
                    "-e:           Print elapsed time at exit\n"
                    "\n"
-                   "controls\n"
-                   "vim keys - hjkl or arrow keys: move around\n"
-                   "q or esc: exit\n");
+                   "controls:\n"
+                   "vim keys (hjkl) or arrow keys:  move around\n"
+                   "r:                              reset position\n"
+                   "q or esc:                       exit\n");
             return 0;
             break;
         }
@@ -516,6 +518,7 @@ int main(int argc, char **argv)
             if (dimensions.x + 1 < dimensions.width - clock_len)
                 dimensions.x += 1;
             break;
+        case KEY_r:
         case KEY_RESIZE: 
             need_to_erase = true;
             getmaxyx_and_go_to_middle(&dimensions, clock_len);
