@@ -43,7 +43,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define BUF_SZ 128
 
-#define NANO_INTERVAL 10000000
+#define NANO_INTERVAL 25000000
 
 #define SOUND_PATH "Bell, Counter, A.wav"
 #ifndef BUILD_SOUND_PATH
@@ -507,7 +507,7 @@ int main(int argc, char **argv)
     global_start = cur_time;
 
     /* Timer on with to update the clock */
-    const int redraw_reset = 50;
+    const int redraw_reset = 40;
     int redraw_timer = redraw_reset - 1; /* Start timer almost at reset so we draw instantly */
 
     /* How much we want to sleep every tick */
