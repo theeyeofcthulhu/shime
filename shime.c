@@ -543,11 +543,11 @@ int main(int argc, char **argv)
                 /* Finished */
                 if (cur_time < 0) {
                     SDL_AudioDeviceID deviceID;
-                    if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) < 0) {
+                    if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) == 0) {
                         fprintf(stderr, "Could not open audio device: %s\n", SDL_GetError());
                         return 1;
                     }
-                    if (SDL_QueueAudio(deviceID, wav_buffer, audio_len)) {
+                    if (SDL_QueueAudio(deviceID, wav_buffer, audio_len) < 0) {
                         fprintf(stderr, "Could not enqueue audio: %s\n", SDL_GetError());
                         return 1;
                     }
