@@ -35,12 +35,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <SDL2/SDL.h>
 
 /* Ascii table keys */
-#define KEY_q 113
-#define KEY_h 104
-#define KEY_j 106
-#define KEY_k 107
-#define KEY_l 108
-#define KEY_r 114
+#define KEY_q   'q'
+#define KEY_h   'h'
+#define KEY_j   'j'
+#define KEY_k   'k'
+#define KEY_l   'l'
+#define KEY_r   'r'
+#define KEY_SPC ' '
 #define KEY_esc 27
 
 #define BUF_SZ 128
@@ -312,7 +313,6 @@ int days_in_month(int mon, int year)
 int main(int argc, char **argv)
 {
     DateTimeFormat format = de;
-    int clock_len;
 
     /* SDL Audio variables (for timer ding sound) */
     Uint32 audio_len;
@@ -343,6 +343,7 @@ int main(int argc, char **argv)
                    "controls:\n"
                    "vim keys (hjkl) or arrow keys:  move around\n"
                    "r:                              reset position\n"
+                   "space (with -i or -t):          pause timer\n"
                    "q or esc:                       exit\n");
             return 0;
             break;
@@ -454,7 +455,7 @@ int main(int argc, char **argv)
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
-    clock_len = strlen(format.fmt);
+    int clock_len = strlen(format.fmt);
 
     /* Init dimensions */
     Dimensions dimensions;
@@ -462,6 +463,10 @@ int main(int argc, char **argv)
 
     /* Initialize and get the localtime */
     time_t cur_time = time(NULL);
+
+    time_t pause_start, pause_total;
+    pause_total = 0;
+
     struct tm *local_time = localtime(&cur_time);
 
     if (mode == TIMER)
@@ -480,9 +485,11 @@ int main(int argc, char **argv)
 
     char buf[BUF_SZ];
 
+    const bool is_timer = mode == TIMER || mode == STOPWATCH;
+
     bool running = true;
     bool need_to_erase = false;
-    bool is_timer = mode == TIMER || mode == STOPWATCH;
+    bool paused = false;
 
     /* The main loop: update, draw, sleep */
     while (running) {
@@ -523,6 +530,15 @@ int main(int argc, char **argv)
             need_to_erase = true;
             getmaxyx_and_go_to_middle(&dimensions, clock_len);
             break;
+        case KEY_SPC:
+            if (is_timer) {
+                if (!paused)
+                    pause_start = time(NULL);
+                else
+                    pause_total += time(NULL) - pause_start;
+                paused = !paused;
+            }
+            break;
         default:
             break;
         }
@@ -535,55 +551,57 @@ int main(int argc, char **argv)
                 need_to_erase = false;
             }
 
-            cur_time = time(NULL);
+            if (!paused) {
+                cur_time = time(NULL);
 
-            switch(mode) {
-            case TIMER:
-            {
-                /* How far away are we from reaching start? */
-                cur_time = timer.start - cur_time;
+                switch(mode) {
+                case TIMER:
+                {
+                    /* How far away are we from reaching start? */
+                    cur_time = timer.start - cur_time + pause_total;
 
-                /* Finished */
-                if (cur_time < 0) {
-                    SDL_AudioDeviceID deviceID;
-                    if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) == 0) {
-                        endwin();
-                        fprintf(stderr, "Could not open audio device: %s\n", SDL_GetError());
-                        return 1;
+                    /* Finished */
+                    if (cur_time < 0) {
+                        SDL_AudioDeviceID deviceID;
+                        if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) == 0) {
+                            endwin();
+                            fprintf(stderr, "Could not open audio device: %s\n", SDL_GetError());
+                            return 1;
+                        }
+                        if (SDL_QueueAudio(deviceID, wav_buffer, audio_len) < 0) {
+                            endwin();
+                            fprintf(stderr, "Could not enqueue audio: %s\n", SDL_GetError());
+                            return 1;
+                        }
+                        SDL_PauseAudioDevice(deviceID, 0);
+
+                        while (SDL_GetQueuedAudioSize(deviceID) > 0) {
+                            SDL_Delay(100);
+                        }
+
+                        SDL_CloseAudioDevice(deviceID);
+                        SDL_FreeWAV(wav_buffer);
+
+                        finish(0);
                     }
-                    if (SDL_QueueAudio(deviceID, wav_buffer, audio_len) < 0) {
-                        endwin();
-                        fprintf(stderr, "Could not enqueue audio: %s\n", SDL_GetError());
-                        return 1;
-                    }
-                    SDL_PauseAudioDevice(deviceID, 0);
 
-                    while (SDL_GetQueuedAudioSize(deviceID) > 0) {
-                        SDL_Delay(100);
-                    }
-
-                    SDL_CloseAudioDevice(deviceID);
-                    SDL_FreeWAV(wav_buffer);
-
-                    finish(0);
+                    /* The timer is relative to 1970-1-1 00:00:00 and localtime() */
+                    /* would change the hour value according to the timezone. */
+                    timertime(cur_time, local_time);
+                    break;
                 }
-
-                /* The timer is relative to 1970-1-1 00:00:00 and localtime() */
-                /* would change the hour value according to the timezone. */
-                timertime(cur_time, local_time);
-                break;
-            }
-            case STOPWATCH:
-            {
-                cur_time = cur_time - timer.start;
-                timertime(cur_time, local_time);
-                break;
-            }
-            case CLOCK:
-            {
-                *local_time = *localtime(&cur_time);
-                break;
-            }
+                case STOPWATCH:
+                {
+                    cur_time = cur_time - timer.start - pause_total;
+                    timertime(cur_time, local_time);
+                    break;
+                }
+                case CLOCK:
+                {
+                    *local_time = *localtime(&cur_time);
+                    break;
+                }
+                }
             }
 
             /* Color for the clock, defined in init() */
