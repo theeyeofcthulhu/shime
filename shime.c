@@ -182,9 +182,11 @@ void finish(int sig)
 {
     endwin();
     if (print_elapsed_on_exit) {
-        time_t elapsed =  time(NULL) - global_start;
+        struct tm tm_elapsed;
+        timertime(time(NULL) - global_start, &tm_elapsed);
+
         char buf[BUF_SZ];
-        strftime(buf, sizeof(buf), "Elapsed: %H:%M:%S\n", gmtime(&elapsed));
+        strftime(buf, sizeof(buf), "Elapsed: %H:%M:%S\n", &tm_elapsed);
         printf("%s", buf);
     }
     if (sig == SIGSEGV) {
