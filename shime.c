@@ -110,7 +110,6 @@ void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next);
 void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool timer);
 
 void timertime(time_t in, struct tm *out);
-void timerformat(char *out, size_t max, const char *format, const struct tm *in);
 
 int days_in_month(int mon, int year);
 
@@ -273,6 +272,7 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool ti
     next->tm_year = cur.tm_year + 1;
     last->tm_year = cur.tm_year - 1;
 
+    /* If we are a timer, hours don't have boundaries */
     if (timer) {
         next->tm_hour = cur.tm_hour + 1;
         last->tm_hour = cur.tm_hour - 1 >= 0 ? cur.tm_hour - 1 : 99;
@@ -295,23 +295,6 @@ void timertime(time_t in, struct tm *out)
     out->tm_sec = in % 60;
     out->tm_min = (in % (60 * 60)) / 60;
     out->tm_hour = in / (60 * 60);
-}
-
-/* If *format begins with %H: print the hour first and then call strftime
- * Otherwise: just pass to strftime 
- * Have this because strftime does not allow tm_hour > 23 */
-void timerformat(char *out, size_t max, const char *format, const struct tm *in)
-{
-    if (format[0] == '%' && format[1] == 'H') {
-        int printed = snprintf(out, max, "%02d", in->tm_hour);
-
-        char *new_out = out + printed;
-        max -= printed;
-
-        strftime(new_out, max, format + 2, in);
-    } else {
-        strftime(out, max, format, in);
-    }
 }
 
 /* Return the days a month has */
@@ -612,7 +595,7 @@ int main(int argc, char **argv)
             /* Color for the clock, defined in init() */
             attron(COLOR_PAIR(1));
 
-            timerformat(buf, sizeof(buf), format.fmt, local_time);
+            strftime(buf, sizeof(buf), format.fmt, local_time);
 
             /* Draw the date and time to the screen */
             mvaddstr(dimensions.y, dimensions.x, buf);
@@ -623,10 +606,10 @@ int main(int argc, char **argv)
 
             attron(COLOR_PAIR(2));
 
-            timerformat(buf, sizeof(buf), format.last_next, &last);
+            strftime(buf, sizeof(buf), format.last_next, &last);
             mvaddstr(dimensions.y - 1, dimensions.x, buf);
 
-            timerformat(buf, sizeof(buf), format.last_next, &next);
+            strftime(buf, sizeof(buf), format.last_next, &next);
             mvaddstr(dimensions.y + 1, dimensions.x, buf);
 
             refresh();
