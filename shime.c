@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /* TODO: specify strftime() format via command line */
 
+#define _POSIX_C_SOURCE 200809L /* POSIX.1-2008 */
+
 #include <assert.h>
 #include <getopt.h>
 #include <signal.h>
@@ -25,7 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <threads.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -632,7 +633,7 @@ int main(int argc, char **argv)
 
             redraw_timer = 0;
         }
-        thrd_sleep(&sleep_request, NULL);
+        nanosleep(&sleep_request, NULL);
     }
 
     finish(0);
