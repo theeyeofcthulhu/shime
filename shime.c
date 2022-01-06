@@ -92,7 +92,8 @@ enum ClockType {
     STOPWATCH,
 };
 
-DateTimeFormat strtimeformat(char *str);
+void strtimeformat(char *str, DateTimeFormat *out);
+char *remove_non_format(char *str);
 int strtosecs(char* str);
 
 void finish(int sig);
@@ -109,16 +110,43 @@ int days_in_month(int mon, int year);
 bool print_elapsed_on_exit = false;
 time_t global_start;
 
-DateTimeFormat strtimeformat(char *str)
+void strtimeformat(char *str, DateTimeFormat *out)
 {
     if (strcmp(str, "de") == 0) {
-        return de;
+        out->fmt = de.fmt;
+        out->last_next = de.last_next;
     } else if (strcmp(str, "us") == 0) {
-        return us;
+        out->fmt = us.fmt;
+        out->last_next = us.last_next;
     } else {
-        fprintf(stderr, "Invalid format: '%s'\n", str);
-        exit(1);
+        out->fmt = str;
+        out->last_next = remove_non_format(str);
     }
+}
+
+/* Duplicates string and removes everything
+ * that is not a printf-format-parameter, i.e.: %a */
+char *remove_non_format(char *str)
+{
+    char *res, *i;
+    i = res = strdup(str);
+
+    for (; *i != '\0'; i++) {
+        if (*i == '%') {
+            if(*(i+1) == '\0') {
+                *i = ' ';
+                break;
+            }
+
+            i++;
+
+            continue;
+        }
+
+        *i = ' ';
+    }
+
+    return res;
 }
 
 /* Valid strings:
@@ -332,13 +360,14 @@ int main(int argc, char **argv)
             printf("shime Copyright (C) 2021 theeyeofcthulhu on GitHub\n"
                    "\n"
                    "options:\n"
-                   "-h:           Display this message and exit\n"
-                   "-f [de us]:   Change the time format\n"
-                   "-t [TIME]:    Start a timer which plays a sound on finish.\n"
-                   "              TIME is a string in this format: HOURS:MINUTES:SECONDS.\n"
-                   "              HOURS or MINUTES and HOURS can be left out.\n"
-                   "-i:           Incremental timer\n"
-                   "-e:           Print elapsed time at exit\n"
+                   "-h:             Display this message and exit\n"
+                   "-f              Change the time format.\n"
+                   "[de us CUSTOM]: For CUSTOM, see man strftime(3).\n"
+                   "-t [TIME]:      Start a timer which plays a sound on finish.\n"
+                   "                TIME is a string in this format: HOURS:MINUTES:SECONDS.\n"
+                   "                HOURS or MINUTES and HOURS can be left out.\n"
+                   "-i:             Incremental timer\n"
+                   "-e:             Print elapsed time at exit\n"
                    "\n"
                    "controls:\n"
                    "vim keys (hjkl) or arrow keys:  move around\n"
@@ -352,7 +381,9 @@ int main(int argc, char **argv)
         {
             mutually_exclusive_opts++;
 
-            format = strtimeformat(optarg);
+            /* Either correlates a string to a builtin format (like 'de') 
+             * or creates a custom format */
+            strtimeformat(optarg, &format);
             break;
         }
         case 't':
