@@ -100,11 +100,12 @@ void finish(int sig);
 
 void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len);
 
-void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next);
+void get_last_next_general(int n, int max, int *last, int *next);
 void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool timer);
 
 void timertime(time_t in, struct tm *out);
 
+bool is_leap_year(int year);
 int days_in_month(int mon, int year);
 
 bool print_elapsed_on_exit = false;
@@ -229,7 +230,7 @@ void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len)
     d->x = d->width / 2 - clock_len / 2;
 }
 
-void get_last_next_hours_mins_or_seconds(int n, int max, int *last, int *next)
+void get_last_next_general(int n, int max, int *last, int *next)
 {
     if (n + 1 >= max) {
         *next = 0;
@@ -288,14 +289,24 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool ti
         next->tm_hour = cur.tm_hour + 1;
         last->tm_hour = cur.tm_hour - 1 >= 0 ? cur.tm_hour - 1 : 99;
     } else {
-        get_last_next_hours_mins_or_seconds(cur.tm_hour, 24, &last->tm_hour,
+        get_last_next_general(cur.tm_hour, 24, &last->tm_hour,
                                             &next->tm_hour); /* Hours */
     }
 
-    get_last_next_hours_mins_or_seconds(cur.tm_min, 60, &last->tm_min,
+    get_last_next_general(cur.tm_min, 60, &last->tm_min,
                                         &next->tm_min); /* Minutes */
-    get_last_next_hours_mins_or_seconds(cur.tm_sec, 60, &last->tm_sec,
+    get_last_next_general(cur.tm_sec, 60, &last->tm_sec,
                                         &next->tm_sec); /* Seconds */
+    get_last_next_general(cur.tm_wday, 7, &last->tm_wday,
+                                        &next->tm_wday); /* Day of the week */
+
+    get_last_next_general(cur.tm_yday, is_leap_year(year) ? 366 : 365, &last->tm_yday,
+                                        &next->tm_yday); /* Day of the year */
+    if (cur.tm_yday == 0) {
+        last->tm_yday = is_leap_year(year - 1) ? 365 : 364;
+    }
+
+    next->tm_isdst = last->tm_isdst = cur.tm_isdst;
 }
 
 /* Like localtime(3) but for a timer which doesn't want tm_hour bound from 0 to 23 */
@@ -306,6 +317,19 @@ void timertime(time_t in, struct tm *out)
     out->tm_sec = in % 60;
     out->tm_min = (in % (60 * 60)) / 60;
     out->tm_hour = in / (60 * 60);
+}
+
+/* Leap year: https://en.wikipedia.org/wiki/Leap_year#Algorithm */
+bool is_leap_year(int year)
+{
+    if (year % 4 != 0)
+        return false;
+    else if (year % 400 == 0)
+        return true;
+    else if (year % 100 == 0)
+        return false;
+    else
+        return true;
 }
 
 /* Return the days a month has */
@@ -327,11 +351,7 @@ int days_in_month(int mon, int year)
     case 11:
         return 30;
     case 2:
-        /* Leap year: https://en.wikipedia.org/wiki/Leap_year#Algorithm */
-        if (year % 4 == 0 && !(year % 100 == 0 && year % 400 != 0))
-            return 29;
-        else
-            return 28;
+        return is_leap_year(year) ? 29 : 28;
     default:
         assert(false);
         return 0;
