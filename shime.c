@@ -55,8 +55,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /* Stores format to be read by strftime() */
 typedef struct {
-    char *fmt;
-    char *last_next;
+    const char *fmt;
+    const char *last_next;
 } DateTimeFormat;
 
 const DateTimeFormat de = {
@@ -92,16 +92,16 @@ enum ClockType {
     STOPWATCH,
 };
 
-void strtimeformat(char *str, DateTimeFormat *out);
-char *remove_non_format(char *str);
-int strtosecs(char* str);
+void strtimeformat(const char *str, DateTimeFormat *out);
+char *remove_non_format(const char *str);
+int strtosecs(const char* str);
 
 void finish(int sig);
 
 void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len);
 
 void get_last_next_general(int n, int max, int *last, int *next);
-void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool timer);
+void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next, bool timer);
 
 void timertime(time_t in, struct tm *out);
 
@@ -111,7 +111,7 @@ int days_in_month(int mon, int year);
 bool print_elapsed_on_exit = false;
 time_t global_start;
 
-void strtimeformat(char *str, DateTimeFormat *out)
+void strtimeformat(const char *str, DateTimeFormat *out)
 {
     if (strcmp(str, "de") == 0) {
         out->fmt = de.fmt;
@@ -127,7 +127,7 @@ void strtimeformat(char *str, DateTimeFormat *out)
 
 /* Duplicates string and removes everything
  * that is not a printf-format-parameter, i.e.: %a */
-char *remove_non_format(char *str)
+char *remove_non_format(const char *str)
 {
     char *res, *i;
     i = res = strdup(str);
@@ -156,7 +156,7 @@ char *remove_non_format(char *str)
  * HOURS:MINUTES:SECONDS 
  *
  * returns -1 on failure */
-int strtosecs(char* str)
+int strtosecs(const char* str)
 {
     int units[3] = {0}; /* {HOURS, MINUTES, SECONDS} */
     char *end, *saved;
@@ -246,7 +246,7 @@ void get_last_next_general(int n, int max, int *last, int *next)
 
 /* Calculate the last and the next time unit for every unit in cur
  * Store in *last and *next */
-void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool timer)
+void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next, bool timer)
 {
     int year = cur.tm_year + 1900;
     int mon = cur.tm_mon + 1;
