@@ -24,9 +24,9 @@ clean:
 
 .PHONY: install
 install: $(EXE)
-	install "$(EXE)" "$(DESTDIR)/bin"
+	install -m755 "$(EXE)" "$(DESTDIR)/bin"
 	mkdir -p "$(DESTDIR)/share/$(EXE)"
-	install "$(SOUND)" "$(DESTDIR)/share/$(EXE)"
+	install -m644 "$(SOUND)" "$(DESTDIR)/share/$(EXE)"
 
 .PHONY: uninstall
 uninstall:
