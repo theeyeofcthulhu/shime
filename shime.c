@@ -1,6 +1,6 @@
 /*
 shime: small terminal clock
-Copyright (C) 2021 eyeofcthulhu
+Copyright (C) 2021-2022 eyeofcthulhu
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -378,7 +378,7 @@ int main(int argc, char **argv)
         case 'h':
         {
             /* Help page */
-            printf("shime Copyright (C) 2021 theeyeofcthulhu on GitHub\n"
+            printf("shime Copyright (C) 2021-2022 theeyeofcthulhu on GitHub\n"
                    "\n"
                    "options:\n"
                    "-h:             Display this message and exit\n"
