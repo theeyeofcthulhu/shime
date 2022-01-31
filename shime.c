@@ -309,7 +309,8 @@ void get_last_next_time(struct tm cur, struct tm *last, struct tm *next, bool ti
     next->tm_isdst = last->tm_isdst = cur.tm_isdst;
 }
 
-/* Like localtime(3) but for a timer which doesn't want tm_hour bound from 0 to 23 */
+/* Like localtime(3) but for a timer which doesn't want tm_hour bound from 0 to 23
+ * and disregards every value but tm_sec, tm_min and tm_hour */
 void timertime(time_t in, struct tm *out)
 {
     out->tm_mday = out->tm_mon = out->tm_year = out->tm_wday = out->tm_yday = out->tm_isdst = 0;
@@ -427,7 +428,7 @@ int main(int argc, char **argv)
             timertime(timer.secs, &timer_broken_down);
             if (timer_broken_down.tm_hour >= 99) {
                 fprintf(stderr, "Specified timer is too long\n");
-                exit(1);
+                return 1;
             }
 
             /* Initialize SDL for playing sound after timer has ended */
