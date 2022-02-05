@@ -133,8 +133,8 @@ char *remove_non_format(const char *str)
     i = res = strdup(str);
 
     for (; *i != '\0'; i++) {
-        if (*i == '%') {
-            if(*(i+1) == '\0') {
+        if (*i == '%' && *(i+1) != '%') {
+            if(*(i+1) == '\0') { /* Not a format character, the string has ended */
                 *i = ' ';
                 break;
             }
