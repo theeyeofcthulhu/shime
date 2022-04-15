@@ -28,9 +28,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <time.h>
 #include <unistd.h>
 
+#include "config.h"
+
 #include <curses.h>
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
+
+#ifdef USE_NOTIFY
+#include <notify.h>
+#endif
 
 /* Ascii table keys */
 #define KEY_q   'q'
@@ -45,11 +51,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define BUF_SZ 128
 
 #define NANO_INTERVAL 25000000
-
-#define SOUND_PATH "Bell, Counter, A.wav"
-#ifndef BUILD_SOUND_PATH
-#define BUILD_SOUND_PATH SOUND_PATH /* Will be defined by make, sound path in install folder */
-#endif
 
 /* Stores format to be read by strftime() */
 typedef struct {
@@ -612,6 +613,14 @@ int main(int argc, char **argv)
 
                     /* Finished */
                     if (cur_time < 0) {
+#ifdef USE_NOTIFY
+                        notify_init("shime");
+                        NotifyNotification *note = notify_notification_new("shime", "Your timer is over", "dialog-information");
+                        notify_notification_show (note, NULL);
+                        g_object_unref(G_OBJECT(note));
+                        notify_uninit();
+#endif // USE_NOTIFY
+
                         SDL_AudioDeviceID deviceID;
                         if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) == 0) {
                             endwin();

@@ -4,6 +4,7 @@
 
 - [ncurses](https://invisible-island.net/ncurses/ncurses.html) - for drawing to the terminal
 - [sdl2](https://www.libsdl.org/download-2.0.php) - for playing a short sound when a timer finishes
+- (Optional)[libnotify](https://gitlab.gnome.org/GNOME/libnotify) - for giving notifications when a timer finishes
 
 ## Quick Description
 
@@ -12,7 +13,8 @@ Small terminal clock using ncurses.
 ## Quick Start
 
 ```console
-$ make run
+$ ./build.sh
+$ ./shime
 ```
 
 ## Usage

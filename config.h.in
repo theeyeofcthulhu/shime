@@ -1,0 +1,4 @@
+#define SOUND_PATH "Bell, Counter, A.wav"
+#cmakedefine BUILD_SOUND_PATH @BUILD_SOUND_PATH@
+
+#cmakedefine USE_NOTIFY @USE_NOTIFY@
