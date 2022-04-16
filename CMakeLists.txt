@@ -11,7 +11,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 file(GLOB SOURCES "*.c")
 
-set(BUILD_SOUND_PATH "\"${CMAKE_INSTALL_PREFIX}/Bell, Counter, A.wav\"")
+set(SOUND "Bell, Counter, A.wav")
+set(SHARE_PATH "${CMAKE_INSTALL_PREFIX}/share")
+
+set(BUILD_SOUND_PATH "\"${SHARE_PATH}/${SOUND}\"")
 
 find_package(Curses REQUIRED)
 
@@ -49,6 +52,8 @@ if(PkgConfig_FOUND)
     else()
         message("Not using libnotify")
     endif()
+else()
+    message("Not using pkg-config to locate libnotify")
 endif()
 
 configure_file (
@@ -58,3 +63,6 @@ configure_file (
 
 # config.h is going to be here
 target_include_directories(shime PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+install(TARGETS shime)
+install(FILES "${SOUND}" DESTINATION "${SHARE_PATH}")
