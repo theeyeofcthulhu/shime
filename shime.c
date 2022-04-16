@@ -32,10 +32,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <curses.h>
 
-#include <SDL.h>
+#ifdef USE_SDL2
+#include <SDL2/SDL.h>
+#endif
 
 #ifdef USE_NOTIFY
-#include <notify.h>
+#include <libnotify/notify.h>
 #endif
 
 /* Ascii table keys */
@@ -362,10 +364,12 @@ int main(int argc, char **argv)
 {
     DateTimeFormat format = de;
 
+#ifdef USE_SDL2
     /* SDL Audio variables (for timer ding sound) */
     Uint32 audio_len;
     Uint8 *wav_buffer;
     SDL_AudioSpec wav_spec;
+#endif
 
     enum ClockType mode = CLOCK;
     Timer timer;
@@ -430,6 +434,7 @@ int main(int argc, char **argv)
                 return 1;
             }
 
+#ifdef USE_SDL2
             /* Initialize SDL for playing sound after timer has ended */
             if (SDL_Init(SDL_INIT_AUDIO) < 0) {
                 fprintf(stderr, "Could not initialize SDL\n");
@@ -442,6 +447,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "Could not open audio file: %s\n", SDL_GetError());
                 return 1;
             }
+#endif
             break;
         }
         case 'i':
@@ -621,6 +627,7 @@ int main(int argc, char **argv)
                         notify_uninit();
 #endif // USE_NOTIFY
 
+#ifdef USE_SDL2
                         SDL_AudioDeviceID deviceID;
                         if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) == 0) {
                             endwin();
@@ -640,6 +647,7 @@ int main(int argc, char **argv)
 
                         SDL_CloseAudioDevice(deviceID);
                         SDL_FreeWAV(wav_buffer);
+#endif
 
                         finish(0);
                     }

@@ -2,9 +2,18 @@
 
 ## Dependencies
 
+### Runtime
+
 - [ncurses](https://invisible-island.net/ncurses/ncurses.html) - for drawing to the terminal
-- [sdl2](https://www.libsdl.org/download-2.0.php) - for playing a short sound when a timer finishes
-- (Optional)[libnotify](https://gitlab.gnome.org/GNOME/libnotify) - for giving notifications when a timer finishes
+- (Optional) [sdl2](https://www.libsdl.org/download-2.0.php) - for playing a short sound when a timer finishes
+- (Optional) [libnotify](https://gitlab.gnome.org/GNOME/libnotify) - for giving notifications when a timer finishes
+
+### Build
+
+- CMake
+- Make
+- (Optional, for finding libnotify and dependencies) Pkg-Config
+- C compiler
 
 ## Quick Description
 

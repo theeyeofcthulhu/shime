@@ -2,3 +2,5 @@
 #cmakedefine BUILD_SOUND_PATH @BUILD_SOUND_PATH@
 
 #cmakedefine USE_NOTIFY @USE_NOTIFY@
+
+#cmakedefine USE_SDL2 @USE_SDL2@

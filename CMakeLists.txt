@@ -14,27 +14,41 @@ file(GLOB SOURCES "*.c")
 set(BUILD_SOUND_PATH "\"${CMAKE_INSTALL_PREFIX}/Bell, Counter, A.wav\"")
 
 find_package(Curses REQUIRED)
-find_package(SDL2 REQUIRED)
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(NOTIFY libnotify)
+find_package(SDL2)
+
+find_package(PkgConfig)
+if(PkgConfig_FOUND)
+    pkg_search_module(NOTIFY libnotify)
+endif()
 
 add_executable(shime ${SOURCES})
 
-target_include_directories(shime PRIVATE "${CURSES_INCLUDE_DIRS}" "${SDL2_INCLUDE_DIRS}")
-target_link_libraries(shime "${SDL2_LIBRARIES}" "${CURSES_LIBRARIES}")
+target_include_directories(shime PRIVATE "${CURSES_INCLUDE_DIRS}")
+target_link_libraries(shime "${CURSES_LIBRARIES}")
 
-if(NOTIFY_FOUND)
-    find_path(NOTIFY_INC notify.h
-        PATHS
-        HINTS ${PKG_LIBNOTIFY_INCLUDE_DIRS}
-        PATH_SUFFIXES libnotify
-    )
+if (SDL2_FOUND)
+    message("Using sdl2")
 
-    target_include_directories(shime PRIVATE "${NOTIFY_INC}" "${NOTIFY_INCLUDE_DIRS}")
-    target_link_libraries(shime "${NOTIFY_LDFLAGS}")
+    target_include_directories(shime PRIVATE "${SDL2_INCLUDE_DIRS}")
+    target_link_libraries(shime "${SDL2_LIBRARIES}")
 
-    set(USE_NOTIFY 1)
+    set(USE_SDL2 1)
+else()
+    message("Not using sdl2")
+endif()
+
+if(PkgConfig_FOUND)
+    if(NOTIFY_FOUND)
+        message("Using libnotify")
+
+        target_include_directories(shime PRIVATE "${NOTIFY_INCLUDE_DIRS}")
+        target_link_libraries(shime "${NOTIFY_LDFLAGS}")
+
+        set(USE_NOTIFY 1)
+    else()
+        message("Not using libnotify")
+    endif()
 endif()
 
 configure_file (
@@ -42,4 +56,5 @@ configure_file (
     "config.h"
 )
 
+# config.h is going to be here
 target_include_directories(shime PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
