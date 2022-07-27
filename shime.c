@@ -25,6 +25,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -41,12 +43,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #endif
 
 /* Ascii table keys */
-#define KEY_q   'q'
-#define KEY_h   'h'
-#define KEY_j   'j'
-#define KEY_k   'k'
-#define KEY_l   'l'
-#define KEY_r   'r'
+#define KEY_q 'q'
+#define KEY_h 'h'
+#define KEY_j 'j'
+#define KEY_k 'k'
+#define KEY_l 'l'
+#define KEY_r 'r'
 #define KEY_SPC ' '
 #define KEY_esc 27
 
@@ -95,19 +97,24 @@ enum ClockType {
 
 void strtimeformat(const char *str, DateTimeFormat *out);
 char *remove_non_format(const char *str);
-int strtosecs(const char* str);
+int strtosecs(const char *str);
 
 void finish(int sig);
 
 void getmaxyx_and_go_to_middle(Dimensions *d, int clock_len);
 
 void get_last_next_general(int n, int max, int *last, int *next);
-void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next, bool timer);
+void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next,
+                        bool timer);
 
 void timertime(time_t in, struct tm *out);
 
 bool is_leap_year(int year);
 int days_in_month(int mon, int year);
+
+#ifdef USE_SDL2
+int play_sound_via_sdl2(void);
+#endif
 
 bool print_elapsed_on_exit = false;
 time_t global_start;
@@ -134,8 +141,8 @@ char *remove_non_format(const char *str)
     i = res = strdup(str);
 
     for (; *i != '\0'; i++) {
-        if (*i == '%' && *(i+1) != '%') {
-            if(*(i+1) == '\0') { /* Not a format character, the string has ended */
+        if (*i == '%' && *(i + 1) != '%') {
+            if (*(i + 1) == '\0') { /* Not a format character, the string has ended */
                 *i = ' ';
                 break;
             }
@@ -154,10 +161,10 @@ char *remove_non_format(const char *str)
 /* Valid strings:
  * SECONDS as int
  * MINUTES:SECONDS
- * HOURS:MINUTES:SECONDS 
+ * HOURS:MINUTES:SECONDS
  *
  * returns -1 on failure */
-int strtosecs(const char* str)
+int strtosecs(const char *str)
 {
     int units[3] = {0}; /* {HOURS, MINUTES, SECONDS} */
     char *end, *saved;
@@ -247,7 +254,8 @@ void get_last_next_general(int n, int max, int *last, int *next)
 
 /* Calculate the last and the next time unit for every unit in cur
  * Store in *last and *next */
-void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next, bool timer)
+void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next,
+                        bool timer)
 {
     int year = cur.tm_year + 1900;
     int mon = cur.tm_mon + 1;
@@ -291,18 +299,18 @@ void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next, b
         last->tm_hour = cur.tm_hour - 1 >= 0 ? cur.tm_hour - 1 : 99;
     } else {
         get_last_next_general(cur.tm_hour, 24, &last->tm_hour,
-                                            &next->tm_hour); /* Hours */
+                              &next->tm_hour); /* Hours */
     }
 
     get_last_next_general(cur.tm_min, 60, &last->tm_min,
-                                        &next->tm_min); /* Minutes */
+                          &next->tm_min); /* Minutes */
     get_last_next_general(cur.tm_sec, 60, &last->tm_sec,
-                                        &next->tm_sec); /* Seconds */
+                          &next->tm_sec); /* Seconds */
     get_last_next_general(cur.tm_wday, 7, &last->tm_wday,
-                                        &next->tm_wday); /* Day of the week */
+                          &next->tm_wday); /* Day of the week */
 
-    get_last_next_general(cur.tm_yday, is_leap_year(year) ? 366 : 365, &last->tm_yday,
-                                        &next->tm_yday); /* Day of the year */
+    get_last_next_general(cur.tm_yday, is_leap_year(year) ? 366 : 365,
+                          &last->tm_yday, &next->tm_yday); /* Day of the year */
     if (cur.tm_yday == 0) {
         last->tm_yday = is_leap_year(year - 1) ? 365 : 364;
     }
@@ -310,11 +318,12 @@ void get_last_next_time(const struct tm cur, struct tm *last, struct tm *next, b
     next->tm_isdst = last->tm_isdst = cur.tm_isdst;
 }
 
-/* Like localtime(3) but for a timer which doesn't want tm_hour bound from 0 to 23
- * and disregards every value but tm_sec, tm_min and tm_hour */
+/* Like localtime(3) but for a timer which doesn't want tm_hour bound from 0 to
+ * 23 and disregards every value but tm_sec, tm_min and tm_hour */
 void timertime(time_t in, struct tm *out)
 {
-    out->tm_mday = out->tm_mon = out->tm_year = out->tm_wday = out->tm_yday = out->tm_isdst = 0;
+    out->tm_mday = out->tm_mon = out->tm_year = out->tm_wday = out->tm_yday =
+        out->tm_isdst = 0;
 
     out->tm_sec = in % 60;
     out->tm_min = (in % (60 * 60)) / 60;
@@ -360,44 +369,81 @@ int days_in_month(int mon, int year)
     }
 }
 
+/* FIXME: This function can't be used twice, as it
+ * initializes a lot of stuff. */
+#ifdef USE_SDL2
+int play_sound_via_sdl2(void)
+{
+    Uint32 audio_len;
+    Uint8 *wav_buffer;
+    SDL_AudioSpec wav_spec;
+
+    /* Initialize SDL for playing sound after timer has ended */
+    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+        return -1;
+    }
+
+    /* Try to open in current folder and then in install folder */
+    if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &audio_len) == NULL &&
+        SDL_LoadWAV(BUILD_SOUND_PATH, &wav_spec, &wav_buffer, &audio_len) == NULL) {
+        return -1;
+    }
+    SDL_AudioDeviceID deviceID;
+    if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) == 0) {
+        return -1;
+    }
+    if (SDL_QueueAudio(deviceID, wav_buffer, audio_len) < 0) {
+        return -1;
+    }
+    SDL_PauseAudioDevice(deviceID, 0);
+
+    while (SDL_GetQueuedAudioSize(deviceID) > 0) {
+        SDL_Delay(100);
+    }
+
+    SDL_CloseAudioDevice(deviceID);
+    SDL_FreeWAV(wav_buffer);
+
+    return 0;
+}
+#endif
+
 int main(int argc, char **argv)
 {
     DateTimeFormat format = de;
 
-#ifdef USE_SDL2
-    /* SDL Audio variables (for timer ding sound) */
-    Uint32 audio_len;
-    Uint8 *wav_buffer;
-    SDL_AudioSpec wav_spec;
-#endif
-
     enum ClockType mode = CLOCK;
     Timer timer;
 
+    bool daemonize = false;
+
     int mutually_exclusive_opts = 0;
     int arg;
-    while ((arg = getopt(argc, argv, "hf:t:ie")) != -1) {
+    while ((arg = getopt(argc, argv, "hf:t:die")) != -1) {
         switch (arg) {
         case 'h':
         {
             /* Help page */
-            printf("shime Copyright (C) 2021-2022 theeyeofcthulhu on GitHub\n"
-                   "\n"
-                   "options:\n"
-                   "-h:             Display this message and exit\n"
-                   "-f              Change the time format.\n"
-                   "[de us CUSTOM]: For CUSTOM, see man strftime(3).\n"
-                   "-t [TIME]:      Start a timer which plays a sound on finish.\n"
-                   "                TIME is a string in this format: HOURS:MINUTES:SECONDS.\n"
-                   "                HOURS or MINUTES and HOURS can be left out.\n"
-                   "-i:             Incremental timer\n"
-                   "-e:             Print elapsed time at exit\n"
-                   "\n"
-                   "controls:\n"
-                   "vim keys (hjkl) or arrow keys:  move around\n"
-                   "r:                              reset position\n"
-                   "space (with -i or -t):          pause timer\n"
-                   "q or esc:                       exit\n");
+            printf(
+                "shime Copyright (C) 2021-2022 theeyeofcthulhu on GitHub\n"
+                "\n"
+                "options:\n"
+                "-h:             Display this message and exit\n"
+                "-f              Change the time format.\n"
+                "[de us CUSTOM]: For CUSTOM, see man strftime(3).\n"
+                "-t [TIME]:      Start a timer which plays a sound on finish.\n"
+                "                TIME is a string in this format: "
+                "HOURS:MINUTES:SECONDS.\n"
+                "                HOURS or MINUTES and HOURS can be left out.\n"
+                "-d:             (For timer.) Daemonize and do not animate.\n"
+                "-i:             Incremental timer\n"
+                "-e:             Print elapsed time at exit\n"
+                "\n"
+                "controls:\n"
+                "vim keys (hjkl) or arrow keys:  move around\n"
+                "r:                              reset position\n"
+                "space (with -i or -t):          pause timer\n"
+                "q or esc:                       exit\n");
             return 0;
             break;
         }
@@ -405,7 +451,7 @@ int main(int argc, char **argv)
         {
             mutually_exclusive_opts++;
 
-            /* Either correlates a string to a builtin format (like 'de') 
+            /* Either correlates a string to a builtin format (like 'de')
              * or creates a custom format */
             strtimeformat(optarg, &format);
             break;
@@ -420,9 +466,10 @@ int main(int argc, char **argv)
 
             timer.secs = strtosecs(optarg);
             if (timer.secs <= 0) {
-                fprintf(stderr, 
+                fprintf(stderr,
                         "Failed to parse '%s' to a timer. "
-                        "Expected HOURS:MINS:SECONDS (or MINS:SECONDS / SECONDS) as a positive integer.\n", 
+                        "Expected HOURS:MINS:SECONDS (or MINS:SECONDS / SECONDS)"
+                        "as a positive integer.\n",
                         optarg);
                 return 1;
             }
@@ -434,20 +481,11 @@ int main(int argc, char **argv)
                 return 1;
             }
 
-#ifdef USE_SDL2
-            /* Initialize SDL for playing sound after timer has ended */
-            if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-                fprintf(stderr, "Could not initialize SDL\n");
-                return 1;
-            }
-
-            /* Try to open in current folder and then in install folder */
-            if (SDL_LoadWAV(SOUND_PATH, &wav_spec, &wav_buffer, &audio_len) == NULL &&
-                SDL_LoadWAV(BUILD_SOUND_PATH, &wav_spec, &wav_buffer, &audio_len) == NULL) {
-                fprintf(stderr, "Could not open audio file: %s\n", SDL_GetError());
-                return 1;
-            }
-#endif
+            break;
+        }
+        case 'd':
+        {
+            daemonize = true;
             break;
         }
         case 'i':
@@ -469,9 +507,115 @@ int main(int argc, char **argv)
             break;
         }
     }
-    if(mutually_exclusive_opts > 1) {
+    if (mutually_exclusive_opts > 1 || (daemonize && mode != TIMER)) {
         fprintf(stderr, "Specified mutually exclusive options\n");
         return 1;
+    }
+
+    /*
+     * Daemon path (only available with timer):
+     *
+     * 1. become daemon
+     * 2. sleep the required timer
+     * 3. perform notification
+     */
+    if (daemonize) {
+        pid_t pid;
+
+        /* Fork off the parent process */
+        pid = fork();
+
+        /* An error occurred */
+        if (pid == -1) {
+            perror("fork");
+            return 1;
+        }
+
+        /* Success: Let the parent terminate */
+        if (pid != 0) {
+            return 0;
+        }
+
+        /* On success: The child process becomes session leader */
+        if (setsid() == -1) {
+            perror("setsid");
+            return 0;
+        }
+
+        /* Catch, ignore and handle signals */
+        // TODO: Implement a working signal handler */
+        signal(SIGCHLD, SIG_IGN);
+        signal(SIGHUP, SIG_IGN);
+
+        /* Fork off for the second time*/
+        pid = fork();
+
+        /* An error occurred */
+        if (pid == -1) {
+            perror("fork");
+            return 1;
+        }
+
+        /* Success: Let the parent terminate */
+        if (pid != 0) {
+            return 0;
+        }
+
+        /* Set new file permissions */
+        umask(0);
+
+        /* Change the working directory to the root directory */
+        /* or another appropriated directory */
+        if (chdir("/") == -1) {
+            perror("chdir");
+            return 1;
+        }
+
+        /* Print information about timer */
+        char buf[BUF_SZ];
+
+        struct tm tm_temp;
+        timertime(timer.secs, &tm_temp);
+
+        strftime(buf, sizeof(buf), timer_fmt.fmt, &tm_temp);
+
+        printf("PID: %d, Timer set for %s.\n", getpid(), buf);
+
+        /* Close all open file descriptors */
+        int x;
+        for (x = sysconf(_SC_OPEN_MAX); x >= 0; x--) {
+            close(x);
+        }
+
+        openlog("shime", LOG_PID, LOG_DAEMON);
+
+        // finish the timer in a simple sleep
+        const struct timespec request = {
+            .tv_nsec = 0,
+            .tv_sec = timer.secs,
+        };
+        nanosleep(&request, NULL);
+
+#ifdef USE_NOTIFY
+        notify_init("shime");
+        NotifyNotification *note = notify_notification_new(
+            "shime", "Your timer is over", "dialog-information");
+        notify_notification_show(note, NULL);
+        g_object_unref(G_OBJECT(note));
+        notify_uninit();
+#endif // USE_NOTIFY
+
+#ifdef USE_SDL2
+        if (play_sound_via_sdl2() == -1) {
+            syslog(LOG_ERR, "SDL Error: %s\n", SDL_GetError());
+            closelog();
+            return 1;
+        }
+#endif
+
+        closelog();
+
+        return 0;
     }
 
     /* Ncurses init logic */
@@ -495,7 +639,8 @@ int main(int argc, char **argv)
     /* Don't echo the the getch() chars onto the screen */
     noecho();
 
-    /* Getch() doesn't wait for input and just returns ERR if no key is pressed */
+    /* Getch() doesn't wait for input and just returns ERR if no key is pressed
+     */
     nodelay(stdscr, true);
 
     /* Enable keypad (for arrow keys) */
@@ -535,7 +680,8 @@ int main(int argc, char **argv)
 
     /* Timer on with to update the clock */
     const int redraw_reset = 40;
-    int redraw_timer = redraw_reset - 1; /* Start timer almost at reset so we draw instantly */
+    int redraw_timer =
+        redraw_reset - 1; /* Start timer almost at reset so we draw instantly */
 
     /* How much we want to sleep every tick */
     const struct timespec sleep_request = {0, NANO_INTERVAL};
@@ -583,7 +729,7 @@ int main(int argc, char **argv)
                 dimensions.x += 1;
             break;
         case KEY_r:
-        case KEY_RESIZE: 
+        case KEY_RESIZE:
             need_to_erase = true;
             getmaxyx_and_go_to_middle(&dimensions, clock_len);
             break;
@@ -611,7 +757,7 @@ int main(int argc, char **argv)
             if (!paused) {
                 cur_time = time(NULL);
 
-                switch(mode) {
+                switch (mode) {
                 case TIMER:
                 {
                     /* How far away are we from reaching start? */
@@ -621,32 +767,20 @@ int main(int argc, char **argv)
                     if (cur_time < 0) {
 #ifdef USE_NOTIFY
                         notify_init("shime");
-                        NotifyNotification *note = notify_notification_new("shime", "Your timer is over", "dialog-information");
-                        notify_notification_show (note, NULL);
+                        NotifyNotification *note = notify_notification_new(
+                            "shime", "Your timer is over",
+                            "dialog-information");
+                        notify_notification_show(note, NULL);
                         g_object_unref(G_OBJECT(note));
                         notify_uninit();
 #endif // USE_NOTIFY
 
 #ifdef USE_SDL2
-                        SDL_AudioDeviceID deviceID;
-                        if ((deviceID = SDL_OpenAudioDevice(NULL, 0, &wav_spec, NULL, 0)) == 0) {
+                        if (play_sound_via_sdl2() == -1) {
                             endwin();
-                            fprintf(stderr, "Could not open audio device: %s\n", SDL_GetError());
-                            return 1;
+                            fprintf(stderr, "SDL Error: %s\n", SDL_GetError());
+                            finish(1);
                         }
-                        if (SDL_QueueAudio(deviceID, wav_buffer, audio_len) < 0) {
-                            endwin();
-                            fprintf(stderr, "Could not enqueue audio: %s\n", SDL_GetError());
-                            return 1;
-                        }
-                        SDL_PauseAudioDevice(deviceID, 0);
-
-                        while (SDL_GetQueuedAudioSize(deviceID) > 0) {
-                            SDL_Delay(100);
-                        }
-
-                        SDL_CloseAudioDevice(deviceID);
-                        SDL_FreeWAV(wav_buffer);
 #endif
 
                         finish(0);
